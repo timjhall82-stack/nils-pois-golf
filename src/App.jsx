@@ -131,9 +131,8 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
     const [hcp, setHcp] = useState('');
 
     const handleAdd = async (e) => {
-        e.preventDefault(); // Stop form submission
+        e.preventDefault();
         if (!name.trim()) return;
-        
         try {
             await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'saved_players'), {
                 name: name,
@@ -142,8 +141,8 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
             });
             setName('');
             setHcp('');
-        } catch (err) {
-            console.error("Error adding player", err);
+        } catch (e) {
+            console.error("Error adding player", e);
         }
     };
 
@@ -168,16 +167,16 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
                 {/* Add New */}
                 <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
                     <h3 className="text-xs font-bold text-slate-500 uppercase mb-3">Add New Player</h3>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
                         <input 
-                            className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-blue-500 outline-none"
+                            className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-blue-500 outline-none w-0"
                             placeholder="Name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                         />
                         <input 
                             type="number"
-                            className="w-20 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-blue-500 outline-none"
+                            className="w-16 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-blue-500 outline-none"
                             placeholder="HCP"
                             value={hcp}
                             onChange={(e) => setHcp(e.target.value)}
@@ -185,7 +184,7 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
                         <button 
                             onClick={handleAdd}
                             disabled={!name.trim()}
-                            className="bg-blue-600 text-white p-2 rounded-lg font-bold disabled:opacity-50 active:scale-95 transition-transform"
+                            className="bg-blue-600 text-white p-2 rounded-lg font-bold disabled:opacity-50 flex-shrink-0"
                         >
                             <Plus size={20} />
                         </button>
@@ -200,13 +199,13 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
                     ) : (
                         savedPlayers.map(p => (
                             <div key={p.id} className="bg-slate-900 border border-slate-800 p-3 rounded-xl flex justify-between items-center">
-                                <div>
-                                    <div className="font-bold text-white">{p.name}</div>
+                                <div className="truncate pr-2">
+                                    <div className="font-bold text-white truncate">{p.name}</div>
                                     <div className="text-xs text-slate-500">HCP: {p.handicap}</div>
                                 </div>
                                 <button 
                                     onClick={() => handleDelete(p.id)}
-                                    className="p-2 text-slate-600 hover:text-red-500 transition"
+                                    className="p-2 text-slate-600 hover:text-red-500 transition flex-shrink-0"
                                 >
                                     <Trash2 size={16} />
                                 </button>
@@ -551,9 +550,9 @@ const SetupView = ({
                 </label>
 
                 {/* Ad-hoc Add */}
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
                     <input 
-                        className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                        className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500 w-0"
                         placeholder="Guest Name"
                         value={adhocName}
                         onChange={(e) => setAdhocName(e.target.value)}
@@ -568,7 +567,7 @@ const SetupView = ({
                     <button 
                         onClick={addAdhoc} 
                         disabled={!adhocName.trim()} 
-                        className="bg-emerald-600 text-white px-3 rounded-lg font-bold disabled:opacity-50 active:scale-95 transition-transform"
+                        className="bg-emerald-600 text-white px-3 rounded-lg font-bold disabled:opacity-50 active:scale-95 transition-transform h-10 flex items-center justify-center flex-shrink-0"
                     >
                         <Plus size={16} />
                     </button>
@@ -589,8 +588,10 @@ const SetupView = ({
                                         : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'
                                     }`}
                                 >
-                                    <span>{p.name}</span>
-                                    {selectedFriends.has(p.id) ? <CheckSquare size={14} className="text-emerald-500"/> : <Square size={14} />}
+                                    <span className="truncate mr-2">{p.name}</span>
+                                    <div className="flex-shrink-0">
+                                        {selectedFriends.has(p.id) ? <CheckSquare size={14} className="text-emerald-500"/> : <Square size={14} />}
+                                    </div>
                                 </button>
                             ))}
                         </div>
@@ -717,18 +718,14 @@ const ScoreView = ({
   // Group Logic
   const myGroup = myData.teeGroup;
   const relevantPlayers = useMemo(() => {
-      // 1. If showAll is true, return everyone
       if (showAllPlayers) return players;
-      // 2. If user is in a group, return that group
       if (myGroup) {
           const groupMembers = players.filter(p => p.teeGroup === myGroup);
-          // Always ensure current user is in list
           if (!groupMembers.find(p => p.userId === user.uid)) {
               return [myData, ...groupMembers]; 
           }
           return groupMembers;
       }
-      // 3. Fallback: Show everyone
       return players;
   }, [players, myGroup, showAllPlayers, user, myData]);
 
@@ -778,7 +775,6 @@ const ScoreView = ({
                   const displayVal = score || holePar; 
                   const isEntered = score > 0;
 
-                  // Calc stats for this hole
                   const net = calculateNetScore(score || holePar, currentHole - 1, p.courseHandicap || 0, activeSi || DEFAULT_SI);
                   
                   let statPreview = "";
@@ -789,7 +785,6 @@ const ScoreView = ({
                       statPreview = `Net ${net}`;
                   }
 
-                  // Score diff for color (if entered)
                   const diff = displayVal - holePar;
                   let colorClass = "text-slate-400";
                   if (isEntered) {
@@ -799,27 +794,27 @@ const ScoreView = ({
                   }
 
                   return (
-                      <div key={p.id} className="bg-slate-800 p-3 rounded-xl flex items-center justify-between border border-slate-700">
-                          <div className="flex-1">
-                              <div className="font-bold text-sm text-slate-200">{p.playerName}</div>
-                              <div className="text-[10px] text-slate-500">CH: {p.courseHandicap} • {statPreview}</div>
+                      <div key={p.id} className="bg-slate-800 p-2 rounded-xl flex items-center justify-between border border-slate-700 w-full max-w-full">
+                          <div className="flex-1 min-w-0 pr-2">
+                              <div className="font-bold text-sm text-slate-200 truncate">{p.playerName}</div>
+                              <div className="text-[10px] text-slate-500 truncate">CH: {p.courseHandicap} • {statPreview}</div>
                           </div>
                           
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2 flex-shrink-0">
                               <button 
                                   onClick={() => updateScore(p.userId, currentHole, Math.max(1, displayVal - 1))}
-                                  className="w-10 h-10 rounded-full bg-slate-900 border border-slate-600 flex items-center justify-center text-red-400 hover:bg-slate-700 active:scale-95"
+                                  className="w-10 h-10 rounded-full bg-slate-900 border border-slate-600 flex items-center justify-center text-red-400 hover:bg-slate-700 active:scale-95 flex-shrink-0"
                               >
                                   <Minus size={18} />
                               </button>
                               
-                              <div className={`w-8 text-center text-xl font-mono ${colorClass}`}>
+                              <div className={`w-6 text-center text-xl font-mono ${colorClass}`}>
                                   {displayVal}
                               </div>
 
                               <button 
                                   onClick={() => updateScore(p.userId, currentHole, displayVal + 1)}
-                                  className="w-10 h-10 rounded-full bg-slate-900 border border-slate-600 flex items-center justify-center text-green-400 hover:bg-slate-700 active:scale-95"
+                                  className="w-10 h-10 rounded-full bg-slate-900 border border-slate-600 flex items-center justify-center text-green-400 hover:bg-slate-700 active:scale-95 flex-shrink-0"
                               >
                                   <Plus size={18} />
                               </button>
