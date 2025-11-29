@@ -50,7 +50,8 @@ import {
   User,
   UserCheck,
   Eye,
-  EyeOff
+  EyeOff,
+  AlertCircle
 } from 'lucide-react';
 
 // --- Firebase Initialization ---
@@ -235,7 +236,7 @@ const LobbyView = ({
       <h1 className="text-3xl font-bold">Nils Pois</h1>
     </div>
 
-    {error && <div className="w-full max-w-sm p-3 bg-red-500/20 border border-red-500/50 text-red-200 rounded-lg text-sm text-center animate-in fade-in slide-in-from-top-2">{error}</div>}
+    {error && <div className="w-full max-w-sm p-3 bg-red-500/20 border border-red-500/50 text-red-200 rounded-lg text-sm text-center animate-in fade-in slide-in-from-top-2 flex items-center justify-center"><AlertCircle size={16} className="mr-2"/>{error}</div>}
 
     <div className="w-full max-w-sm bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-800 space-y-4">
       <div className="flex justify-between items-center">
@@ -444,7 +445,8 @@ const SetupView = ({
   performGoogleSearch,
   createGame,
   onCancel,
-  savedPlayers 
+  savedPlayers,
+  error // Receive Error Prop
 }) => {
   const [showBrowser, setShowBrowser] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState(new Set());
@@ -519,6 +521,9 @@ const SetupView = ({
 
         <h2 className="text-xl font-bold mb-4 flex items-center"><Settings size={20} className="mr-2"/> Game Setup</h2>
         
+        {/* Error Banner */}
+        {error && <div className="w-full max-w-md p-3 bg-red-500/20 border border-red-500/50 text-red-200 rounded-lg text-sm text-center mb-4 flex items-center justify-center animate-in fade-in"><AlertCircle size={16} className="mr-2"/>{error}</div>}
+
         <div className="w-full max-w-md bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-6">
             
             {/* 1. Host Player Details */}
@@ -528,7 +533,7 @@ const SetupView = ({
                 </label>
                 <div className="flex gap-3">
                     <input 
-                        className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                        className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500 w-0"
                         placeholder="Your Name"
                         value={playerName}
                         onChange={(e) => setPlayerName(e.target.value)}
@@ -632,12 +637,12 @@ const SetupView = ({
                     </label>
                     <div className="flex gap-2">
                         <input 
-                            className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                            className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500 w-0"
                             value={courseName}
                             onChange={(e) => setCourseName(e.target.value)}
                             placeholder="Course Name"
                         />
-                        <button onClick={() => setShowBrowser(true)} className="px-3 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors">
+                        <button onClick={() => setShowBrowser(true)} className="px-3 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors flex-shrink-0">
                             <Globe size={18} />
                         </button>
                     </div>
@@ -1456,6 +1461,7 @@ export default function App() {
                 createGame={createGame}
                 onCancel={() => setView('lobby')}
                 savedPlayers={savedPlayers} 
+                error={error} // Pass error prop
             />
         )}
 
