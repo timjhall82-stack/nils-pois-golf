@@ -65,7 +65,7 @@ import {
   CloudOff, 
   FlagTriangleRight,
   Ban,
-  LogIn // For Login Button
+  LogIn 
 } from 'lucide-react';
 
 // --- Firebase Initialization ---
@@ -81,7 +81,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = 'nils-pois-live-v10'; 
+const appId = 'nils-pois-live-v1';
 
 // --- Constants ---
 const COLLECTION_NAME = 'golf_scores';
@@ -236,57 +236,25 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
     );
 };
 
-const LobbyView = ({ 
-  playerName, setPlayerName, 
-  joinCodeInput, setJoinCodeInput, 
-  handleJoinGame,
-  courseName, setCourseName,
-  startSetup,
-  error, setShowPortal, setShowHistory,
-  user, handleLogin, handleLogout
-}) => (
+const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput, handleJoinGame, courseName, setCourseName, startSetup, error, setShowPortal, setShowHistory, user, handleLogin, handleLogout }) => (
   <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-slate-950 text-white space-y-6">
-    <div className="text-center mb-4">
-      <div className="bg-emerald-600 p-3 rounded-2xl inline-block mb-3 shadow-lg shadow-emerald-500/20">
-          <Flag size={32} className="text-white" fill="currentColor" />
-      </div>
-      <h1 className="text-3xl font-bold">Nils Pois</h1>
-    </div>
-
-    {/* Login / Profile Section */}
+    <div className="text-center mb-4"><div className="bg-emerald-600 p-3 rounded-2xl inline-block mb-3 shadow-lg shadow-emerald-500/20"><Flag size={32} className="text-white" fill="currentColor" /></div><h1 className="text-3xl font-bold">Nils Pois</h1></div>
+    
     <div className="w-full max-w-sm bg-slate-900/50 rounded-xl border border-slate-800 p-3 flex justify-between items-center">
         <div className="flex items-center">
-            <div className="bg-slate-800 p-2 rounded-full text-slate-400 mr-3">
-                <User size={16} />
-            </div>
+            <div className="bg-slate-800 p-2 rounded-full text-slate-400 mr-3"><User size={16} /></div>
             <div>
-                <div className="text-xs font-bold text-slate-300">
-                    {user?.isAnonymous ? 'Guest User' : user?.displayName || 'Golfer'}
-                </div>
-                <div className="text-[10px] text-slate-500">
-                    {user?.isAnonymous ? 'Data not saved across devices' : 'Account Synced'}
-                </div>
+                <div className="text-xs font-bold text-slate-300">{user?.isAnonymous ? 'Guest User' : user?.displayName || 'Golfer'}</div>
+                <div className="text-[10px] text-slate-500">{user?.isAnonymous ? 'Data not saved' : 'Account Synced'}</div>
             </div>
         </div>
-        {user?.isAnonymous ? (
-             <button 
-                onClick={handleLogin}
-                className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-3 rounded-lg flex items-center transition-colors"
-             >
-                 <LogIn size={12} className="mr-1" /> Login
-             </button>
-        ) : (
-             <button 
-                onClick={handleLogout}
-                className="text-slate-500 hover:text-red-400 text-xs font-bold py-2 px-2 transition-colors"
-             >
-                 Sign Out
-             </button>
-        )}
+        {user?.isAnonymous ? 
+            <button onClick={handleLogin} className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-3 rounded-lg flex items-center transition-colors"><LogIn size={12} className="mr-1" /> Login</button> : 
+            <button onClick={handleLogout} className="text-slate-500 hover:text-red-400 text-xs font-bold py-2 px-2 transition-colors">Sign Out</button>
+        }
     </div>
 
     {error && <div className="w-full max-w-sm p-3 bg-red-500/20 border border-red-500/50 text-red-200 rounded-lg text-sm text-center animate-in fade-in slide-in-from-top-2 flex items-center justify-center"><AlertCircle size={16} className="mr-2"/>{error}</div>}
-
     <div className="w-full max-w-sm bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-800 space-y-4">
       <div className="flex justify-between items-center"><h2 className="text-sm font-bold text-emerald-400 uppercase tracking-wider">Start New Round</h2></div>
       <div><label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Course / Game Name</label><input type="text" className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 focus:outline-none focus:border-emerald-500 transition-colors" value={courseName} onChange={(e) => setCourseName(e.target.value)} placeholder="e.g. Sunday Medal" /></div>
@@ -616,6 +584,7 @@ const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestName, se
 // --- Main App Component ---
 
 export default function App() {
+  // --- State ---
   const [user, setUser] = useState(null);
   const [gameId, setGameId] = useState('');
   const [playerName, setPlayerName] = useState('');
@@ -623,9 +592,11 @@ export default function App() {
   const [savedPlayers, setSavedPlayers] = useState([]);
   const [syncStatus, setSyncStatus] = useState('saved'); // saved, saving, error
   
+  // Game Data
   const [players, setPlayers] = useState([]);
   const [gameSettings, setGameSettings] = useState(null);
   
+  // UI State
   const [view, setView] = useState('lobby'); 
   const [currentHole, setCurrentHole] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -636,9 +607,11 @@ export default function App() {
   const [showPortal, setShowPortal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   
+  // Tee Sheet Manager State
   const [newGuestName, setNewGuestName] = useState('');
   const [newGuestHcp, setNewGuestHcp] = useState('');
   
+  // Setup State
   const [courseName, setCourseName] = useState('');
   const [slope, setSlope] = useState('113');
   const [rating, setRating] = useState('72.0');
@@ -646,68 +619,165 @@ export default function App() {
   const [si, setSi] = useState(DEFAULT_SI);
   const [gameMode, setGameMode] = useState('stroke'); 
 
+  // --- Auth & Init ---
   useEffect(() => {
     const initAuth = async () => {
-      try { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } else { await signInAnonymously(auth); } } catch (err) { console.error("Auth error", err); setError("Failed to authenticate"); }
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (err) {
+        console.error("Auth error", err);
+        setError("Failed to authenticate");
+      }
     };
     initAuth();
+    
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
+      
       const savedGame = localStorage.getItem('golf_game_id');
       const savedName = localStorage.getItem('golf_player_name');
       const savedHcp = localStorage.getItem('golf_player_hcp');
-      if (savedGame && savedName) { setGameId(savedGame); setPlayerName(savedName); if (savedHcp) setHandicapIndex(savedHcp); setJoinCodeInput(savedGame); } else { setLoading(false); }
+      
+      if (savedGame && savedName) {
+        setGameId(savedGame);
+        setPlayerName(savedName);
+        if (savedHcp) setHandicapIndex(savedHcp);
+        setJoinCodeInput(savedGame);
+      } else {
+        setLoading(false);
+      }
     });
     return () => unsubscribe();
   }, []);
 
+  // --- Fetch Saved Players ---
   useEffect(() => {
       if (!user) return;
       const q = query(collection(db, 'artifacts', appId, 'users', user.uid, 'saved_players'));
-      const unsubscribe = onSnapshot(q, (snapshot) => { const sp = []; snapshot.forEach(doc => sp.push({id: doc.id, ...doc.data()})); setSavedPlayers(sp); }, (err) => { console.error("Error fetching players:", err); });
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+          const sp = [];
+          snapshot.forEach(doc => sp.push({id: doc.id, ...doc.data()}));
+          setSavedPlayers(sp);
+      }, (err) => {
+          console.error("Error fetching players:", err);
+      });
       return () => unsubscribe();
   }, [user]);
 
+  // --- Data Sync ---
   useEffect(() => {
     if (!user || !gameId) return;
+
     setLoading(true);
+
     const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, `SETTINGS_${gameId}`);
     const unsubSettings = onSnapshot(settingsRef, (docSnap) => {
-        if (docSnap.exists()) { setGameSettings(docSnap.data()); if (view === 'lobby' || view === 'setup') setView('score'); } setLoading(false);
+        if (docSnap.exists()) {
+            setGameSettings(docSnap.data());
+            if (view === 'lobby' || view === 'setup') setView('score');
+        }
+        setLoading(false);
     }, (err) => console.error(err));
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME), where('gameId', '==', gameId.toUpperCase()), where('type', '==', 'player'));
-    const unsubPlayers = onSnapshot(q, (snapshot) => { const playerData = []; snapshot.forEach((doc) => { playerData.push({ id: doc.id, ...doc.data() }); }); setPlayers(playerData); }, (err) => console.error(err));
-    return () => { unsubSettings(); unsubPlayers(); };
+
+    const q = query(
+      collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME),
+      where('gameId', '==', gameId.toUpperCase()),
+      where('type', '==', 'player')
+    );
+
+    const unsubPlayers = onSnapshot(q, (snapshot) => {
+      const playerData = [];
+      snapshot.forEach((doc) => {
+        playerData.push({ id: doc.id, ...doc.data() });
+      });
+      setPlayers(playerData);
+    }, (err) => console.error(err));
+
+    return () => {
+        unsubSettings();
+        unsubPlayers();
+    };
   }, [user, gameId]);
 
-  const performGoogleSearch = () => { if (!courseName) return; const query = `${courseName} golf course scorecard slope rating`; window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank'); };
-  const startSetup = () => { if (!courseName.trim()) { setError("Name the game first"); return; } setView('setup'); };
+  // --- Helpers ---
+  const performGoogleSearch = () => {
+      if (!courseName) return;
+      const query = `${courseName} golf course scorecard slope rating`;
+      window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank');
+  };
 
+  // --- Actions ---
+
+  const startSetup = () => {
+      if (!courseName.trim()) { setError("Name the game first"); return; }
+      setView('setup');
+  };
+
+  // Modified createGame to accept initial friends
   const createGame = async (friendsToAdd = []) => {
       if (!playerName) { throw new Error("Host name required"); }
+      
       const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
       const settingsId = `SETTINGS_${newCode}`;
       const totalPar = pars.reduce((a, b) => a + b, 0);
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, settingsId), { courseName, slope, rating, pars, si, totalPar, gameMode, createdAt: new Date().toISOString() });
+
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, settingsId), {
+          courseName,
+          slope,
+          rating,
+          pars,
+          si, 
+          totalPar,
+          gameMode, 
+          createdAt: new Date().toISOString()
+      });
+
+      // Join Host
       await joinGameLogic(newCode, courseName, slope, rating, totalPar);
+
+      // Add Selected Friends Automatically
       if (friendsToAdd.length > 0) {
           const batch = writeBatch(db);
           friendsToAdd.forEach(friend => {
               const guestId = `guest_${Math.random().toString(36).substring(2, 9)}`;
               const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, `${newCode}_${guestId}`);
               const ch = calculateCourseHandicap(friend.handicap, slope, rating, totalPar);
-              batch.set(docRef, { gameId: newCode, userId: guestId, playerName: friend.name, handicapIndex: friend.handicap, courseHandicap: ch, type: 'player', isGuest: true, teeGroup: null, lastActive: new Date().toISOString() });
+              
+              batch.set(docRef, {
+                  gameId: newCode,
+                  userId: guestId,
+                  playerName: friend.name,
+                  handicapIndex: friend.handicap,
+                  courseHandicap: ch,
+                  type: 'player',
+                  isGuest: true,
+                  teeGroup: null,
+                  lastActive: new Date().toISOString()
+              });
           });
           await batch.commit();
       }
   };
 
   const handleJoinGame = async () => {
-    if (!playerName.trim() || !joinCodeInput.trim()) { setError("Name and Code required"); return; }
+    if (!playerName.trim() || !joinCodeInput.trim()) {
+        setError("Name and Code required");
+        return;
+    }
+    
     const code = joinCodeInput.toUpperCase();
     const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, `SETTINGS_${code}`);
     const snap = await getDoc(settingsRef);
-    if (!snap.exists()) { setError("Game code not found"); return; }
+    
+    if (!snap.exists()) {
+        setError("Game code not found");
+        return;
+    }
+
     const settings = snap.data();
     await joinGameLogic(code, settings.courseName, settings.slope, settings.rating, settings.totalPar);
   };
@@ -715,47 +785,118 @@ export default function App() {
   const joinGameLogic = async (code, cName, cSlope, cRating, cTotalPar) => {
     setLoading(true);
     setGameId(code);
+    
     localStorage.setItem('golf_game_id', code);
     localStorage.setItem('golf_player_name', playerName);
     localStorage.setItem('golf_player_hcp', handicapIndex);
+
     const ch = calculateCourseHandicap(handicapIndex, cSlope, cRating, cTotalPar);
+
     const playerDocId = `${code}_${user.uid}`;
-    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, playerDocId), { gameId: code, userId: user.uid, playerName: playerName, handicapIndex: handicapIndex, courseHandicap: ch, type: 'player', lastActive: new Date().toISOString() }, { merge: true });
+    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, playerDocId), {
+        gameId: code,
+        userId: user.uid,
+        playerName: playerName,
+        handicapIndex: handicapIndex,
+        courseHandicap: ch,
+        type: 'player',
+        lastActive: new Date().toISOString()
+    }, { merge: true });
+
     setView('score');
     setLoading(false);
   };
 
   const updateScore = async (targetUserId, hole, strokes) => {
     if (!user || !gameId) return;
+    
+    // Update Sync Status
     setSyncStatus('saving');
+    
     const playerDocId = `${gameId}_${targetUserId}`;
     const targetPlayer = players.find(p => p.userId === targetUserId) || {};
     const currentScores = targetPlayer.scores || {};
     const newScores = { ...currentScores, [hole]: strokes };
-    try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, playerDocId), { scores: newScores }, { merge: true }); setSyncStatus('saved'); } catch (e) { console.error("Sync error:", e); setSyncStatus('error'); }
+    
+    try {
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, playerDocId), {
+            scores: newScores
+        }, { merge: true });
+        setSyncStatus('saved');
+    } catch (e) {
+        console.error("Sync error:", e);
+        setSyncStatus('error');
+    }
   };
   
-  const leaveGame = () => { setShowExitModal(true); };
-  const confirmLeave = () => { localStorage.removeItem('golf_game_id'); setGameId(''); setPlayers([]); setGameSettings(null); setView('lobby'); setJoinCodeInput(''); setShowExitModal(false); };
-  const loadHistoricalGame = (oldGameId) => { if(!oldGameId) return; setGameId(oldGameId); setShowHistory(false); setView('leaderboard'); };
+  const leaveGame = () => {
+      setShowExitModal(true);
+  };
+
+  const confirmLeave = () => {
+      localStorage.removeItem('golf_game_id');
+      setGameId('');
+      setPlayers([]);
+      setGameSettings(null);
+      setView('lobby');
+      setJoinCodeInput('');
+      setShowExitModal(false);
+  };
+
+  const loadHistoricalGame = (oldGameId) => {
+      if(!oldGameId) return;
+      setGameId(oldGameId);
+      setShowHistory(false);
+      setView('leaderboard'); 
+  };
+
+  // --- NEW ACTIONS for Tee Sheet ---
 
   const addGuestPlayer = async () => {
       if (!newGuestName.trim()) return;
       if (!gameId) return;
+
       const guestId = `guest_${Math.random().toString(36).substring(2, 9)}`;
       const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, `${gameId}_${guestId}`);
+      
       const cSettings = gameSettings || {};
       const ch = calculateCourseHandicap(newGuestHcp, cSettings.slope, cSettings.rating, cSettings.totalPar);
-      await setDoc(docRef, { gameId: gameId, userId: guestId, playerName: newGuestName, handicapIndex: newGuestHcp || 0, courseHandicap: ch, type: 'player', isGuest: true, teeGroup: null, lastActive: new Date().toISOString() });
-      setNewGuestName(''); setNewGuestHcp('');
+
+      await setDoc(docRef, {
+        gameId: gameId,
+        userId: guestId, // Fake ID
+        playerName: newGuestName,
+        handicapIndex: newGuestHcp || 0,
+        courseHandicap: ch,
+        type: 'player',
+        isGuest: true,
+        teeGroup: null, // Initially no group
+        lastActive: new Date().toISOString()
+      });
+
+      setNewGuestName('');
+      setNewGuestHcp('');
   };
 
   const randomizeGroups = async (groupSize) => {
       if (players.length === 0) return;
+
+      // Fisher-Yates Shuffle
       const shuffled = [...players];
-      for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
+      for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+
+      // Assign Groups
       const batch = writeBatch(db);
-      shuffled.forEach((p, index) => { const groupNum = Math.floor(index / groupSize) + 1; const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, p.id); batch.update(docRef, { teeGroup: groupNum }); });
+      
+      shuffled.forEach((p, index) => {
+           const groupNum = Math.floor(index / groupSize) + 1;
+           const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, p.id);
+           batch.update(docRef, { teeGroup: groupNum });
+      });
+
       await batch.commit();
   };
   
@@ -770,72 +911,143 @@ export default function App() {
           }
       } catch (error) {
           if (error.code === 'auth/credential-already-in-use') {
-             // If account exists, just sign in (lose anon data, but safe)
              await signInWithPopup(auth, provider);
+          } else if (error.code === 'auth/popup-closed-by-user') {
+             // Ignore
+          } else {
+              alert("Login failed: " + error.message + "\nCheck domain whitelist in Firebase.");
           }
       }
   };
   
   const handleLogout = async () => {
       await signOut(auth);
-      // Sign in anon again immediately so app works
       await signInAnonymously(auth);
   };
 
+  // --- Derived State ---
   const activePars = gameSettings?.pars || DEFAULT_PARS;
   const activeSi = gameSettings?.si || DEFAULT_SI;
   const activeGameMode = gameSettings?.gameMode || 'stroke';
 
   const leaderboardData = useMemo(() => {
+    // 1. Pre-calculate Net
     const playerDetails = players.map(p => {
         const scores = p.scores || {};
         const ch = p.courseHandicap || 0;
         const netScores = {};
-        activePars.forEach((_, idx) => { const h = idx + 1; if (scores[h]) { netScores[h] = calculateNetScore(scores[h], idx, ch, activeSi); } });
+        
+        activePars.forEach((_, idx) => {
+            const h = idx + 1;
+            if (scores[h]) {
+                netScores[h] = calculateNetScore(scores[h], idx, ch, activeSi);
+            }
+        });
         return { ...p, netScores, scores, ch };
     });
 
+    // 2. Skins Calculation
     const skinsWon = {};
     if (activeGameMode === 'skins') {
         let pot = 1;
         playerDetails.forEach(p => skinsWon[p.id] = 0);
+
         for (let i = 1; i <= 18; i++) {
-            const holeScores = playerDetails.map(p => ({ id: p.id, net: p.netScores[i] })).filter(s => s.net !== undefined && s.net !== null && s.net !== 'NR');
+            const holeScores = playerDetails
+                .map(p => ({ id: p.id, net: p.netScores[i] }))
+                .filter(s => s.net !== undefined && s.net !== null && s.net !== 'NR');
+
             if (holeScores.length === 0) continue; 
+            
             const minVal = Math.min(...holeScores.map(s => s.net));
             const winners = holeScores.filter(s => s.net === minVal);
-            if (winners.length === 1) { skinsWon[winners[0].id] += pot; pot = 1; } else { pot += 1; }
+
+            if (winners.length === 1) {
+                skinsWon[winners[0].id] += pot;
+                pot = 1;
+            } else {
+                pot += 1;
+            }
         }
     }
 
+    // 3. Match Play Calculation
     const myPlayer = playerDetails.find(p => p.userId === user?.uid);
     const matchStatus = {};
+
     if (activeGameMode === 'match' && myPlayer) {
         playerDetails.forEach(opponent => {
-            if (opponent.userId === user.uid) { matchStatus[opponent.id] = "-"; return; }
-            let myWins = 0; let opWins = 0;
-            for (let i = 1; i <= 18; i++) {
-                const myNet = myPlayer.netScores[i]; const opNet = opponent.netScores[i];
-                if (myNet && opNet && myNet !== 'NR' && opNet !== 'NR') { if (myNet < opNet) myWins++; else if (opNet < myNet) opWins++; }
+            if (opponent.userId === user.uid) {
+                matchStatus[opponent.id] = "-";
+                return;
             }
+            
+            let myWins = 0;
+            let opWins = 0;
+            
+            for (let i = 1; i <= 18; i++) {
+                const myNet = myPlayer.netScores[i];
+                const opNet = opponent.netScores[i];
+                
+                if (myNet && opNet && myNet !== 'NR' && opNet !== 'NR') {
+                    if (myNet < opNet) myWins++;
+                    else if (opNet < myNet) opWins++;
+                }
+            }
+            
             const diff = myWins - opWins;
-            if (diff === 0) matchStatus[opponent.id] = "AS"; else if (diff > 0) matchStatus[opponent.id] = `${diff} DN`; else matchStatus[opponent.id] = `${Math.abs(diff)} UP`;
+            if (diff === 0) matchStatus[opponent.id] = "AS";
+            else if (diff > 0) matchStatus[opponent.id] = `${diff} DN`;
+            else matchStatus[opponent.id] = `${Math.abs(diff)} UP`;
         });
     }
 
+
+    // 4. Final Aggregation
     return playerDetails.map(player => {
-        let gross = 0; let holesPlayed = 0; let totalPoints = 0;
+        let gross = 0;
+        let holesPlayed = 0;
+        let totalPoints = 0;
+
         activePars.forEach((par, idx) => {
-            const holeNum = idx + 1; const s = player.scores[holeNum];
-            if (s && s !== 'NR') { gross += s; holesPlayed++; const net = player.netScores[holeNum]; if (net !== null && net !== 'NR') { const pts = Math.max(0, par - net + 2); totalPoints += pts; } }
-            else if (s === 'NR') { holesPlayed++; } 
+            const holeNum = idx + 1;
+            const s = player.scores[holeNum];
+            if (s && s !== 'NR') {
+                gross += s;
+                holesPlayed++;
+                const net = player.netScores[holeNum];
+                if (net !== null && net !== 'NR') {
+                    const pts = Math.max(0, par - net + 2);
+                    totalPoints += pts;
+                }
+            } else if (s === 'NR') {
+                holesPlayed++; // Count NR hole as played but 0 points/score
+            }
         });
-        let parForHolesPlayed = 0; Object.keys(player.scores).forEach(holeKey => { parForHolesPlayed += activePars[parseInt(holeKey)-1]; });
+
+        let parForHolesPlayed = 0;
+        Object.keys(player.scores).forEach(holeKey => {
+            parForHolesPlayed += activePars[parseInt(holeKey)-1];
+        });
         const grossToPar = gross - parForHolesPlayed;
         const netTotal = gross - Math.round(player.ch * (holesPlayed/18));
 
-        return { ...player, gross, holesPlayed, grossToPar, netTotal, totalPoints, matchStatus: matchStatus[player.id] || '-', skinsWon: skinsWon[player.id] || 0, displayScore: holesPlayed === 0 ? 'E' : (grossToPar === 0 ? 'E' : (grossToPar > 0 ? `+${grossToPar}` : grossToPar)) };
-    }).sort((a, b) => { if (activeGameMode === 'stableford') return b.totalPoints - a.totalPoints; if (activeGameMode === 'skins') return b.skinsWon - a.skinsWon; return a.grossToPar - b.grossToPar; });
+        return {
+            ...player,
+            gross,
+            holesPlayed,
+            grossToPar,
+            netTotal,
+            totalPoints,
+            matchStatus: matchStatus[player.id] || '-',
+            skinsWon: skinsWon[player.id] || 0,
+            displayScore: holesPlayed === 0 ? 'E' : (grossToPar === 0 ? 'E' : (grossToPar > 0 ? `+${grossToPar}` : grossToPar))
+        };
+    }).sort((a, b) => {
+        if (activeGameMode === 'stableford') return b.totalPoints - a.totalPoints;
+        if (activeGameMode === 'skins') return b.skinsWon - a.skinsWon;
+        return a.grossToPar - b.grossToPar; 
+    });
   }, [players, activePars, activeSi, activeGameMode, user]);
 
   const myData = players.find(p => p.userId === user?.uid) || {};
@@ -895,8 +1107,16 @@ export default function App() {
                     </div>
                     <div className="flex items-center gap-2">
                         <SyncStatus status={syncStatus} />
-                        <button onClick={() => setShowTeeSheet(true)} className="bg-slate-800 p-2 rounded-full text-emerald-500 hover:text-emerald-400 hover:bg-slate-700 transition"><Users size={16} /></button>
-                        <div className="flex items-center bg-slate-950 rounded-full px-3 py-1 border border-slate-800" onClick={() => {navigator.clipboard.writeText(gameId);}}><span className="font-mono font-bold text-emerald-400 tracking-widest mr-2">{gameId}</span><Share2 size={12} className="text-slate-500"/></div>
+                        <button 
+                            onClick={() => setShowTeeSheet(true)}
+                            className="bg-slate-800 p-2 rounded-full text-emerald-500 hover:text-emerald-400 hover:bg-slate-700 transition"
+                        >
+                            <Users size={16} />
+                        </button>
+                        <div className="flex items-center bg-slate-950 rounded-full px-3 py-1 border border-slate-800" onClick={() => {navigator.clipboard.writeText(gameId);}}>
+                            <span className="font-mono font-bold text-emerald-400 tracking-widest mr-2">{gameId}</span>
+                            <Share2 size={12} className="text-slate-500"/>
+                        </div>
                     </div>
                 </header>
 
@@ -923,23 +1143,76 @@ export default function App() {
 
                 <nav className="bg-slate-900 border-t border-slate-800 h-16 pb-2 z-20">
                     <div className="flex justify-around items-center h-full">
-                        <button onClick={() => setView('score')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${view === 'score' ? 'text-emerald-500' : 'text-slate-600'}`}><Activity size={20} /><span className="text-[10px] font-bold uppercase">Score</span></button>
-                        <button onClick={() => setView('leaderboard')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${view === 'leaderboard' ? 'text-blue-500' : 'text-slate-600'}`}><Trophy size={20} /><span className="text-[10px] font-bold uppercase">Leaderboard</span></button>
+                        <button onClick={() => setView('score')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${view === 'score' ? 'text-emerald-500' : 'text-slate-600'}`}>
+                            <Activity size={20} />
+                            <span className="text-[10px] font-bold uppercase">Score</span>
+                        </button>
+                        <button onClick={() => setView('leaderboard')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${view === 'leaderboard' ? 'text-blue-500' : 'text-slate-600'}`}>
+                            <Trophy size={20} />
+                            <span className="text-[10px] font-bold uppercase">Leaderboard</span>
+                        </button>
                     </div>
                 </nav>
             </>
         )}
 
-        {showPortal && user && <PlayerPortal onClose={() => setShowPortal(false)} userId={user.uid} savedPlayers={savedPlayers} />}
-        {showHistory && user && <HistoryView userId={user.uid} onClose={() => setShowHistory(false)} onLoadGame={loadHistoricalGame} />}
-        {showTeeSheet && <TeeSheetModal onClose={() => setShowTeeSheet(false)} players={players} addGuest={addGuestPlayer} randomize={randomizeGroups} newGuestName={newGuestName} setNewGuestName={setNewGuestName} newGuestHcp={newGuestHcp} setNewGuestHcp={setNewGuestHcp} savedPlayers={savedPlayers} />}
+        {/* Player Portal Modal */}
+        {showPortal && user && (
+            <PlayerPortal 
+                onClose={() => setShowPortal(false)}
+                userId={user.uid}
+                savedPlayers={savedPlayers}
+            />
+        )}
+
+        {/* History Modal */}
+        {showHistory && user && (
+            <HistoryView 
+                userId={user.uid}
+                onClose={() => setShowHistory(false)}
+                onLoadGame={loadHistoricalGame}
+            />
+        )}
+
+        {/* Tee Sheet Modal */}
+        {showTeeSheet && (
+            <TeeSheetModal 
+                onClose={() => setShowTeeSheet(false)}
+                players={players}
+                addGuest={addGuestPlayer}
+                randomize={randomizeGroups}
+                newGuestName={newGuestName}
+                setNewGuestName={setNewGuestName}
+                newGuestHcp={newGuestHcp}
+                setNewGuestHcp={setNewGuestHcp}
+                savedPlayers={savedPlayers}
+            />
+        )}
 
         {showExitModal && (
             <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
                 <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-xs w-full">
-                    <div className="flex justify-between items-center mb-4"><h3 className="text-lg font-bold text-white">Exit Game?</h3><button onClick={() => setShowExitModal(false)} className="text-slate-400 hover:text-white"><X size={20} /></button></div>
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-lg font-bold text-white">Exit Game?</h3>
+                        <button onClick={() => setShowExitModal(false)} className="text-slate-400 hover:text-white">
+                            <X size={20} />
+                        </button>
+                    </div>
                     <p className="text-slate-400 text-sm mb-6">You will leave the lobby. Scores are saved online.</p>
-                    <div className="flex gap-3"><button onClick={() => setShowExitModal(false)} className="flex-1 py-3 rounded-xl bg-slate-800 text-slate-300 font-bold text-sm hover:bg-slate-700 transition">Cancel</button><button onClick={confirmLeave} className="flex-1 py-3 rounded-xl bg-red-600 text-white font-bold text-sm hover:bg-red-700 transition">Exit</button></div>
+                    <div className="flex gap-3">
+                        <button 
+                            onClick={() => setShowExitModal(false)}
+                            className="flex-1 py-3 rounded-xl bg-slate-800 text-slate-300 font-bold text-sm hover:bg-slate-700 transition"
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            onClick={confirmLeave}
+                            className="flex-1 py-3 rounded-xl bg-red-600 text-white font-bold text-sm hover:bg-red-700 transition"
+                        >
+                            Exit
+                        </button>
+                    </div>
                 </div>
             </div>
         )}
