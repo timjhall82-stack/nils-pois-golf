@@ -4,7 +4,11 @@ import {
   getAuth, 
   signInAnonymously, 
   onAuthStateChanged,
-  signInWithCustomToken
+  signInWithCustomToken,
+  GoogleAuthProvider,
+  signInWithPopup,
+  linkWithPopup,
+  signOut
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -60,7 +64,8 @@ import {
   Loader2,  
   CloudOff, 
   FlagTriangleRight,
-  Ban // For NR Icon
+  Ban,
+  LogIn // For Login Button
 } from 'lucide-react';
 
 // --- Firebase Initialization ---
@@ -76,7 +81,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = 'nils-pois-live-v1';
+const appId = 'nils-pois-live-v10'; 
 
 // --- Constants ---
 const COLLECTION_NAME = 'golf_scores';
@@ -109,7 +114,7 @@ const PRESET_COURSES = {
 
 // --- Helper Functions ---
 const calculateNetScore = (gross, holeIdx, ch, siList) => {
-    if (gross === 'NR' || !gross) return 'NR'; // Handle NR
+    if (gross === 'NR' || !gross) return 'NR';
     const holeSi = siList[holeIdx];
     let strokesReceived = 0;
     if (ch >= holeSi) strokesReceived = 1;
@@ -231,10 +236,57 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
     );
 };
 
-const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput, handleJoinGame, courseName, setCourseName, startSetup, error, setShowPortal, setShowHistory }) => (
+const LobbyView = ({ 
+  playerName, setPlayerName, 
+  joinCodeInput, setJoinCodeInput, 
+  handleJoinGame,
+  courseName, setCourseName,
+  startSetup,
+  error, setShowPortal, setShowHistory,
+  user, handleLogin, handleLogout
+}) => (
   <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-slate-950 text-white space-y-6">
-    <div className="text-center mb-4"><div className="bg-emerald-600 p-3 rounded-2xl inline-block mb-3 shadow-lg shadow-emerald-500/20"><Flag size={32} className="text-white" fill="currentColor" /></div><h1 className="text-3xl font-bold">Nils Pois</h1></div>
+    <div className="text-center mb-4">
+      <div className="bg-emerald-600 p-3 rounded-2xl inline-block mb-3 shadow-lg shadow-emerald-500/20">
+          <Flag size={32} className="text-white" fill="currentColor" />
+      </div>
+      <h1 className="text-3xl font-bold">Nils Pois</h1>
+    </div>
+
+    {/* Login / Profile Section */}
+    <div className="w-full max-w-sm bg-slate-900/50 rounded-xl border border-slate-800 p-3 flex justify-between items-center">
+        <div className="flex items-center">
+            <div className="bg-slate-800 p-2 rounded-full text-slate-400 mr-3">
+                <User size={16} />
+            </div>
+            <div>
+                <div className="text-xs font-bold text-slate-300">
+                    {user?.isAnonymous ? 'Guest User' : user?.displayName || 'Golfer'}
+                </div>
+                <div className="text-[10px] text-slate-500">
+                    {user?.isAnonymous ? 'Data not saved across devices' : 'Account Synced'}
+                </div>
+            </div>
+        </div>
+        {user?.isAnonymous ? (
+             <button 
+                onClick={handleLogin}
+                className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-3 rounded-lg flex items-center transition-colors"
+             >
+                 <LogIn size={12} className="mr-1" /> Login
+             </button>
+        ) : (
+             <button 
+                onClick={handleLogout}
+                className="text-slate-500 hover:text-red-400 text-xs font-bold py-2 px-2 transition-colors"
+             >
+                 Sign Out
+             </button>
+        )}
+    </div>
+
     {error && <div className="w-full max-w-sm p-3 bg-red-500/20 border border-red-500/50 text-red-200 rounded-lg text-sm text-center animate-in fade-in slide-in-from-top-2 flex items-center justify-center"><AlertCircle size={16} className="mr-2"/>{error}</div>}
+
     <div className="w-full max-w-sm bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-800 space-y-4">
       <div className="flex justify-between items-center"><h2 className="text-sm font-bold text-emerald-400 uppercase tracking-wider">Start New Round</h2></div>
       <div><label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Course / Game Name</label><input type="text" className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 focus:outline-none focus:border-emerald-500 transition-colors" value={courseName} onChange={(e) => setCourseName(e.target.value)} placeholder="e.g. Sunday Medal" /></div>
@@ -564,7 +616,6 @@ const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestName, se
 // --- Main App Component ---
 
 export default function App() {
-  // --- State ---
   const [user, setUser] = useState(null);
   const [gameId, setGameId] = useState('');
   const [playerName, setPlayerName] = useState('');
@@ -572,11 +623,9 @@ export default function App() {
   const [savedPlayers, setSavedPlayers] = useState([]);
   const [syncStatus, setSyncStatus] = useState('saved'); // saved, saving, error
   
-  // Game Data
   const [players, setPlayers] = useState([]);
   const [gameSettings, setGameSettings] = useState(null);
   
-  // UI State
   const [view, setView] = useState('lobby'); 
   const [currentHole, setCurrentHole] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -587,11 +636,9 @@ export default function App() {
   const [showPortal, setShowPortal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   
-  // Tee Sheet Manager State
   const [newGuestName, setNewGuestName] = useState('');
   const [newGuestHcp, setNewGuestHcp] = useState('');
   
-  // Setup State
   const [courseName, setCourseName] = useState('');
   const [slope, setSlope] = useState('113');
   const [rating, setRating] = useState('72.0');
@@ -599,80 +646,41 @@ export default function App() {
   const [si, setSi] = useState(DEFAULT_SI);
   const [gameMode, setGameMode] = useState('stroke'); 
 
-  // --- Auth & Init ---
   useEffect(() => {
     const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
-        }
-      } catch (err) {
-        console.error("Auth error", err);
-        setError("Failed to authenticate");
-      }
+      try { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } else { await signInAnonymously(auth); } } catch (err) { console.error("Auth error", err); setError("Failed to authenticate"); }
     };
     initAuth();
-    
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
-      
       const savedGame = localStorage.getItem('golf_game_id');
       const savedName = localStorage.getItem('golf_player_name');
       const savedHcp = localStorage.getItem('golf_player_hcp');
-      
-      if (savedGame && savedName) {
-        setGameId(savedGame);
-        setPlayerName(savedName);
-        if (savedHcp) setHandicapIndex(savedHcp);
-        setJoinCodeInput(savedGame);
-      } else {
-        setLoading(false);
-      }
+      if (savedGame && savedName) { setGameId(savedGame); setPlayerName(savedName); if (savedHcp) setHandicapIndex(savedHcp); setJoinCodeInput(savedGame); } else { setLoading(false); }
     });
     return () => unsubscribe();
   }, []);
 
-  // --- Fetch Saved Players ---
   useEffect(() => {
       if (!user) return;
       const q = query(collection(db, 'artifacts', appId, 'users', user.uid, 'saved_players'));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-          const sp = [];
-          snapshot.forEach(doc => sp.push({id: doc.id, ...doc.data()}));
-          setSavedPlayers(sp);
-      }, (err) => { console.error("Error fetching players:", err); });
+      const unsubscribe = onSnapshot(q, (snapshot) => { const sp = []; snapshot.forEach(doc => sp.push({id: doc.id, ...doc.data()})); setSavedPlayers(sp); }, (err) => { console.error("Error fetching players:", err); });
       return () => unsubscribe();
   }, [user]);
 
-  // --- Data Sync ---
   useEffect(() => {
     if (!user || !gameId) return;
     setLoading(true);
     const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, `SETTINGS_${gameId}`);
     const unsubSettings = onSnapshot(settingsRef, (docSnap) => {
-        if (docSnap.exists()) {
-            setGameSettings(docSnap.data());
-            if (view === 'lobby' || view === 'setup') setView('score');
-        }
-        setLoading(false);
+        if (docSnap.exists()) { setGameSettings(docSnap.data()); if (view === 'lobby' || view === 'setup') setView('score'); } setLoading(false);
     }, (err) => console.error(err));
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME), where('gameId', '==', gameId.toUpperCase()), where('type', '==', 'player'));
-    const unsubPlayers = onSnapshot(q, (snapshot) => {
-      const playerData = [];
-      snapshot.forEach((doc) => { playerData.push({ id: doc.id, ...doc.data() }); });
-      setPlayers(playerData);
-    }, (err) => console.error(err));
+    const unsubPlayers = onSnapshot(q, (snapshot) => { const playerData = []; snapshot.forEach((doc) => { playerData.push({ id: doc.id, ...doc.data() }); }); setPlayers(playerData); }, (err) => console.error(err));
     return () => { unsubSettings(); unsubPlayers(); };
   }, [user, gameId]);
 
-  const performGoogleSearch = () => {
-      if (!courseName) return;
-      const query = `${courseName} golf course scorecard slope rating`;
-      window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank');
-  };
-
+  const performGoogleSearch = () => { if (!courseName) return; const query = `${courseName} golf course scorecard slope rating`; window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank'); };
   const startSetup = () => { if (!courseName.trim()) { setError("Name the game first"); return; } setView('setup'); };
 
   const createGame = async (friendsToAdd = []) => {
@@ -750,6 +758,29 @@ export default function App() {
       shuffled.forEach((p, index) => { const groupNum = Math.floor(index / groupSize) + 1; const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, p.id); batch.update(docRef, { teeGroup: groupNum }); });
       await batch.commit();
   };
+  
+  const handleLogin = async () => {
+      const provider = new GoogleAuthProvider();
+      try {
+          if (user && user.isAnonymous) {
+              // Link existing data to new google account
+              await linkWithPopup(user, provider);
+          } else {
+              await signInWithPopup(auth, provider);
+          }
+      } catch (error) {
+          if (error.code === 'auth/credential-already-in-use') {
+             // If account exists, just sign in (lose anon data, but safe)
+             await signInWithPopup(auth, provider);
+          }
+      }
+  };
+  
+  const handleLogout = async () => {
+      await signOut(auth);
+      // Sign in anon again immediately so app works
+      await signInAnonymously(auth);
+  };
 
   const activePars = gameSettings?.pars || DEFAULT_PARS;
   const activeSi = gameSettings?.si || DEFAULT_SI;
@@ -797,7 +828,7 @@ export default function App() {
         activePars.forEach((par, idx) => {
             const holeNum = idx + 1; const s = player.scores[holeNum];
             if (s && s !== 'NR') { gross += s; holesPlayed++; const net = player.netScores[holeNum]; if (net !== null && net !== 'NR') { const pts = Math.max(0, par - net + 2); totalPoints += pts; } }
-            else if (s === 'NR') { holesPlayed++; } // Count NR hole as played
+            else if (s === 'NR') { holesPlayed++; } 
         });
         let parForHolesPlayed = 0; Object.keys(player.scores).forEach(holeKey => { parForHolesPlayed += activePars[parseInt(holeKey)-1]; });
         const grossToPar = gross - parForHolesPlayed;
@@ -833,6 +864,7 @@ export default function App() {
                 error={error} 
                 setShowPortal={setShowPortal}
                 setShowHistory={setShowHistory}
+                user={user} handleLogin={handleLogin} handleLogout={handleLogout}
             />
         )}
         
