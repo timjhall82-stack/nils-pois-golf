@@ -67,7 +67,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = 'nils-pois-live-v3';
+const appId = 'nils-pois-live-v4';
 
 // --- Constants ---
 const COLLECTION_NAME = 'golf_scores';
@@ -130,7 +130,6 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
         if (!name.trim()) return;
         setSubmitting(true);
         try {
-            // Explicit path construction for clarity
             const playersRef = collection(db, 'artifacts', appId, 'users', userId, 'saved_players');
             await addDoc(playersRef, {
                 name: name,
@@ -222,7 +221,6 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
     );
 };
 
-// 2. Lobby View
 const LobbyView = ({ 
   playerName, setPlayerName, 
   joinCodeInput, setJoinCodeInput, 
@@ -508,9 +506,32 @@ const SetupView = ({
         {error && <div className="w-full max-w-md p-3 bg-red-500/20 border border-red-500/50 text-red-200 rounded-lg text-sm text-center mb-4 flex items-center justify-center animate-in fade-in"><AlertCircle size={16} className="mr-2"/>{error}</div>}
 
         <div className="w-full max-w-md bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-6">
-            {/* Host Player */}
+            
+            {/* Host Player with Portal Picker */}
             <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
-                <label className="text-xs font-bold text-emerald-400 uppercase flex items-center mb-3"><User size={12} className="mr-1"/> Host Player (You)</label>
+                <div className="flex justify-between items-center mb-3">
+                    <label className="text-xs font-bold text-emerald-400 uppercase flex items-center">
+                        <User size={12} className="mr-1"/> Host Player (You)
+                    </label>
+                    {savedPlayers && savedPlayers.length > 0 && (
+                        <select 
+                            className="bg-slate-800 text-xs text-blue-400 border border-slate-700 rounded px-2 py-1 outline-none max-w-[120px]"
+                            onChange={(e) => {
+                                const p = savedPlayers.find(sp => sp.id === e.target.value);
+                                if(p) {
+                                    setPlayerName(p.name);
+                                    setHandicapIndex(p.handicap);
+                                }
+                            }}
+                            value=""
+                        >
+                            <option value="" disabled>Load Profile...</option>
+                            {savedPlayers.map(p => (
+                                <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                        </select>
+                    )}
+                </div>
                 <div className="flex gap-3">
                     <input className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500 w-0" placeholder="Your Name" value={playerName} onChange={(e) => setPlayerName(e.target.value)} />
                     <input type="number" className="w-20 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="HCP" value={handicapIndex} onChange={(e) => setHandicapIndex(e.target.value)} />
