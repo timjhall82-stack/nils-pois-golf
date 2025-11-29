@@ -66,8 +66,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-//const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-const appId = "nils-pois-live"; // You can name this whatever you want
+
+// You can name this whatever you want, it keeps your data separate from others
+const appId = 'nils-pois-live-v1';
 
 // --- Constants ---
 const COLLECTION_NAME = 'golf_scores';
