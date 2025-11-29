@@ -66,8 +66,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-
-// You can name this whatever you want, it keeps your data separate from others
 const appId = 'nils-pois-live-v1';
 
 // --- Constants ---
@@ -132,8 +130,10 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
     const [name, setName] = useState('');
     const [hcp, setHcp] = useState('');
 
-    const handleAdd = async () => {
+    const handleAdd = async (e) => {
+        e.preventDefault(); // Stop form submission
         if (!name.trim()) return;
+        
         try {
             await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'saved_players'), {
                 name: name,
@@ -142,8 +142,8 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
             });
             setName('');
             setHcp('');
-        } catch (e) {
-            console.error("Error adding player", e);
+        } catch (err) {
+            console.error("Error adding player", err);
         }
     };
 
@@ -185,7 +185,7 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
                         <button 
                             onClick={handleAdd}
                             disabled={!name.trim()}
-                            className="bg-blue-600 text-white p-2 rounded-lg font-bold disabled:opacity-50"
+                            className="bg-blue-600 text-white p-2 rounded-lg font-bold disabled:opacity-50 active:scale-95 transition-transform"
                         >
                             <Plus size={20} />
                         </button>
@@ -448,14 +448,12 @@ const SetupView = ({
   savedPlayers 
 }) => {
   const [showBrowser, setShowBrowser] = useState(false);
-  
-  // Roster Management
   const [selectedFriends, setSelectedFriends] = useState(new Set());
-  const [adhocGuests, setAdhocGuests] = useState([]);
   
-  // Adhoc Inputs
+  // Adhoc Logic
   const [adhocName, setAdhocName] = useState('');
   const [adhocHcp, setAdhocHcp] = useState('');
+  const [adhocGuests, setAdhocGuests] = useState([]);
 
   const handlePresetChange = (e) => {
     const key = e.target.value;
@@ -476,19 +474,23 @@ const SetupView = ({
       setSelectedFriends(newSet);
   };
 
-  const addAdhoc = () => {
+  const addAdhoc = (e) => {
+      e.preventDefault(); // Stop form submission
       if (!adhocName.trim()) return;
-      setAdhocGuests([...adhocGuests, { 
+      
+      const newGuest = { 
           id: `temp_${Date.now()}`, 
           name: adhocName, 
           handicap: adhocHcp || 0 
-      }]);
+      };
+      
+      setAdhocGuests(prev => [...prev, newGuest]);
       setAdhocName('');
       setAdhocHcp('');
   };
 
   const removeAdhoc = (id) => {
-      setAdhocGuests(adhocGuests.filter(g => g.id !== id));
+      setAdhocGuests(prev => prev.filter(g => g.id !== id));
   };
 
   const ModeButton = ({ mode, icon: Icon, label }) => (
@@ -563,7 +565,11 @@ const SetupView = ({
                         value={adhocHcp}
                         onChange={(e) => setAdhocHcp(e.target.value)}
                     />
-                    <button onClick={addAdhoc} disabled={!adhocName.trim()} className="bg-emerald-600 text-white px-3 rounded-lg font-bold disabled:opacity-50">
+                    <button 
+                        onClick={addAdhoc} 
+                        disabled={!adhocName.trim()} 
+                        className="bg-emerald-600 text-white px-3 rounded-lg font-bold disabled:opacity-50 active:scale-95 transition-transform"
+                    >
                         <Plus size={16} />
                     </button>
                 </div>
@@ -592,27 +598,29 @@ const SetupView = ({
                 )}
 
                 {/* Roster Preview */}
-                <div className="bg-slate-900 rounded-lg p-2 border border-slate-800">
-                    <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Who's Playing?</div>
-                    <div className="flex flex-wrap gap-2">
-                        {playerName && (
-                            <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded border border-emerald-500/30 flex items-center">
-                                {playerName} <UserCheck size={10} className="ml-1"/>
-                            </span>
-                        )}
-                        {savedPlayers.filter(p => selectedFriends.has(p.id)).map(p => (
-                            <span key={p.id} className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded border border-slate-700">
-                                {p.name}
-                            </span>
-                        ))}
-                        {adhocGuests.map(g => (
-                            <span key={g.id} className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded border border-blue-500/30 flex items-center group">
-                                {g.name} 
-                                <button onClick={() => removeAdhoc(g.id)} className="ml-1 hover:text-white"><X size={10}/></button>
-                            </span>
-                        ))}
+                {(playerName || selectedFriends.size > 0 || adhocGuests.length > 0) && (
+                    <div className="bg-slate-900 rounded-lg p-2 border border-slate-800">
+                        <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Who's Playing?</div>
+                        <div className="flex flex-wrap gap-2">
+                            {playerName && (
+                                <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded border border-emerald-500/30 flex items-center">
+                                    {playerName} <UserCheck size={10} className="ml-1"/>
+                                </span>
+                            )}
+                            {savedPlayers.filter(p => selectedFriends.has(p.id)).map(p => (
+                                <span key={p.id} className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded border border-slate-700">
+                                    {p.name}
+                                </span>
+                            ))}
+                            {adhocGuests.map(g => (
+                                <span key={g.id} className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded border border-blue-500/30 flex items-center group">
+                                    {g.name} 
+                                    <button onClick={() => removeAdhoc(g.id)} className="ml-1 hover:text-white"><X size={10}/></button>
+                                </span>
+                            ))}
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
 
             {/* 3. Course Details */}
@@ -680,7 +688,6 @@ const SetupView = ({
             <button 
                 onClick={() => {
                     const portalFriends = savedPlayers.filter(p => selectedFriends.has(p.id));
-                    // Combine lists
                     const fullRoster = [...portalFriends, ...adhocGuests];
                     createGame(fullRoster);
                 }}
@@ -768,13 +775,7 @@ const ScoreView = ({
           <div className="flex-1 overflow-y-auto space-y-3 pb-20">
               {relevantPlayers.map(p => {
                   const score = p.scores?.[currentHole];
-                  // If score is undefined, assume par? No, better to show empty or 0. Let's start with par if undefined for quicker entry? 
-                  // Or 0 to indicate not played. Let's use 0 as "no score".
-                  // But for easy entry, if score is 0/undefined, we might display Par as a ghost value?
-                  // Let's just default display to Par if 0, but treat as unentered.
-                  
                   const displayVal = score || holePar; 
-                  // If actual score is 0 (not entered), we can visually distinguish it.
                   const isEntered = score > 0;
 
                   // Calc stats for this hole
@@ -949,7 +950,7 @@ const TeeSheetModal = ({
                     <div className="flex gap-2">
                         <input className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-emerald-500 outline-none" placeholder="Name" value={newGuestName} onChange={(e) => setNewGuestName(e.target.value)} />
                         <input type="number" className="w-16 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-emerald-500 outline-none" placeholder="HCP" value={newGuestHcp} onChange={(e) => setNewGuestHcp(e.target.value)} />
-                        <button onClick={addGuest} className="bg-emerald-600 text-white p-2 rounded-lg font-bold disabled:opacity-50" disabled={!newGuestName.trim()}><Plus size={20} /></button>
+                        <button onClick={(e) => { e.preventDefault(); addGuest(); }} className="bg-emerald-600 text-white p-2 rounded-lg font-bold disabled:opacity-50" disabled={!newGuestName.trim()}><Plus size={20} /></button>
                     </div>
                 </div>
                 <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
@@ -1211,13 +1212,10 @@ export default function App() {
     setLoading(false);
   };
 
-  // Updated score to take target user
   const updateScore = async (targetUserId, hole, strokes) => {
     if (!user || !gameId) return;
     const playerDocId = `${gameId}_${targetUserId}`;
     
-    // Optimistic update local state if needed, but Firestore listener usually fast enough
-    // We fetch current to merge
     const targetPlayer = players.find(p => p.userId === targetUserId) || {};
     const currentScores = targetPlayer.scores || {};
     const newScores = { ...currentScores, [hole]: strokes };
