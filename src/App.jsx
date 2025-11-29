@@ -67,7 +67,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = 'nils-pois-live-v1';
+const appId = 'nils-pois-live-v2';
 
 // --- Constants ---
 const COLLECTION_NAME = 'golf_scores';
@@ -98,23 +98,17 @@ const PRESET_COURSES = {
   }
 };
 
-// --- Helper: Net Score Calculation ---
+// --- Helper Functions ---
 const calculateNetScore = (gross, holeIdx, ch, siList) => {
     if (!gross) return null;
     const holeSi = siList[holeIdx];
     let strokesReceived = 0;
-    
     if (ch >= holeSi) strokesReceived = 1;
     if (ch >= holeSi + 18) strokesReceived = 2; 
-    
-    if (ch < 0 && Math.abs(ch) >= (19 - holeSi)) {
-        strokesReceived = -1;
-    }
-
+    if (ch < 0 && Math.abs(ch) >= (19 - holeSi)) strokesReceived = -1;
     return gross - strokesReceived;
 };
 
-// --- Helper: Calculate Course Handicap ---
 const calculateCourseHandicap = (index, slopeVal, ratingVal, parVal) => {
     if (!index || index === '') return 0;
     const idx = parseFloat(index);
@@ -124,16 +118,17 @@ const calculateCourseHandicap = (index, slopeVal, ratingVal, parVal) => {
     return Math.round(idx * (slp / 113) + (rtg - pr));
 };
 
-// --- Sub-Components ---
+// --- Components ---
 
-// 1. Player Portal Modal
 const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
     const [name, setName] = useState('');
     const [hcp, setHcp] = useState('');
+    const [submitting, setSubmitting] = useState(false);
 
     const handleAdd = async (e) => {
         e.preventDefault();
         if (!name.trim()) return;
+        setSubmitting(true);
         try {
             await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'saved_players'), {
                 name: name,
@@ -142,14 +137,21 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
             });
             setName('');
             setHcp('');
-        } catch (e) {
-            console.error("Error adding player", e);
+        } catch (err) {
+            console.error("Error adding player", err);
+            alert("Error saving player: " + err.message);
+        } finally {
+            setSubmitting(false);
         }
     };
 
     const handleDelete = async (id) => {
         if (confirm("Remove player from portal?")) {
-            await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'saved_players', id));
+            try {
+                await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'saved_players', id));
+            } catch (err) {
+                alert("Error deleting: " + err.message);
+            }
         }
     };
 
@@ -165,7 +167,6 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-6">
-                {/* Add New */}
                 <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
                     <h3 className="text-xs font-bold text-slate-500 uppercase mb-3">Add New Player</h3>
                     <div className="flex gap-2 items-center">
@@ -183,16 +184,16 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
                             onChange={(e) => setHcp(e.target.value)}
                         />
                         <button 
+                            type="button"
                             onClick={handleAdd}
-                            disabled={!name.trim()}
-                            className="bg-blue-600 text-white p-2 rounded-lg font-bold disabled:opacity-50 flex-shrink-0"
+                            disabled={!name.trim() || submitting}
+                            className="bg-blue-600 text-white p-2 rounded-lg font-bold disabled:opacity-50 flex-shrink-0 w-10 flex items-center justify-center"
                         >
-                            <Plus size={20} />
+                            {submitting ? <Activity className="animate-spin" size={16}/> : <Plus size={20} />}
                         </button>
                     </div>
                 </div>
 
-                {/* List */}
                 <div className="space-y-2">
                     <h3 className="text-xs font-bold text-slate-500 uppercase ml-1">Saved Players</h3>
                     {savedPlayers.length === 0 ? (
@@ -219,7 +220,6 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
     );
 };
 
-// 2. Lobby View
 const LobbyView = ({ 
   playerName, setPlayerName, 
   joinCodeInput, setJoinCodeInput, 
@@ -255,6 +255,7 @@ const LobbyView = ({
       </div>
 
       <button 
+        type="button"
         onClick={startSetup} 
         disabled={!courseName.trim()}
         className="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-xl font-bold shadow-lg shadow-emerald-900/50 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100"
@@ -313,6 +314,7 @@ const LobbyView = ({
             </div>
         </div>
         <button 
+            type="button"
             onClick={handleJoinGame} 
             className="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl font-bold shadow-lg shadow-blue-900/50 transition-all active:scale-95"
         >
@@ -322,7 +324,6 @@ const LobbyView = ({
   </div>
 );
 
-// ... CourseBrowser (unchanged) ...
 const CourseBrowser = ({ onClose, onSelectCourse }) => {
     const [step, setStep] = useState('clubs'); 
     const [loading, setLoading] = useState(true);
@@ -430,31 +431,17 @@ const CourseBrowser = ({ onClose, onSelectCourse }) => {
 };
 
 const SetupView = ({
-  // Setup State Props
-  courseName, setCourseName,
-  slope, setSlope,
-  rating, setRating,
-  pars, setPars,
-  gameMode, setGameMode,
-  setSi,
-  
-  // Host Props (New)
-  playerName, setPlayerName,
-  handicapIndex, setHandicapIndex,
-
-  performGoogleSearch,
-  createGame,
-  onCancel,
-  savedPlayers,
-  error // Receive Error Prop
+  courseName, setCourseName, slope, setSlope, rating, setRating,
+  pars, setPars, gameMode, setGameMode, setSi,
+  playerName, setPlayerName, handicapIndex, setHandicapIndex,
+  performGoogleSearch, createGame, onCancel, savedPlayers, error
 }) => {
   const [showBrowser, setShowBrowser] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState(new Set());
-  
-  // Adhoc Logic
   const [adhocName, setAdhocName] = useState('');
   const [adhocHcp, setAdhocHcp] = useState('');
   const [adhocGuests, setAdhocGuests] = useState([]);
+  const [isCreating, setIsCreating] = useState(false);
 
   const handlePresetChange = (e) => {
     const key = e.target.value;
@@ -476,15 +463,9 @@ const SetupView = ({
   };
 
   const addAdhoc = (e) => {
-      e.preventDefault(); // Stop form submission
+      e.preventDefault(); 
       if (!adhocName.trim()) return;
-      
-      const newGuest = { 
-          id: `temp_${Date.now()}`, 
-          name: adhocName, 
-          handicap: adhocHcp || 0 
-      };
-      
+      const newGuest = { id: `temp_${Date.now()}`, name: adhocName, handicap: adhocHcp || 0 };
       setAdhocGuests(prev => [...prev, newGuest]);
       setAdhocName('');
       setAdhocHcp('');
@@ -492,6 +473,18 @@ const SetupView = ({
 
   const removeAdhoc = (id) => {
       setAdhocGuests(prev => prev.filter(g => g.id !== id));
+  };
+
+  const handleStartGame = async () => {
+      setIsCreating(true);
+      try {
+          const portalFriends = savedPlayers.filter(p => selectedFriends.has(p.id));
+          const fullRoster = [...portalFriends, ...adhocGuests];
+          await createGame(fullRoster);
+      } catch(e) {
+          alert("Error creating game: " + e.message);
+          setIsCreating(false);
+      }
   };
 
   const ModeButton = ({ mode, icon: Icon, label }) => (
@@ -506,202 +499,80 @@ const SetupView = ({
 
   return (
     <div className="min-h-screen bg-slate-950 text-white p-4 flex flex-col items-center">
-        {showBrowser && (
-            <CourseBrowser 
-                onClose={() => setShowBrowser(false)}
-                onSelectCourse={(data) => {
-                    setCourseName(data.name);
-                    setPars(data.pars);
-                    setSi(data.si);
-                    setSlope(data.slope);
-                    setRating(data.rating);
-                }}
-            />
-        )}
-
-        <h2 className="text-xl font-bold mb-4 flex items-center"><Settings size={20} className="mr-2"/> Game Setup</h2>
+        {showBrowser && <CourseBrowser onClose={() => setShowBrowser(false)} onSelectCourse={(data) => { setCourseName(data.name); setPars(data.pars); setSi(data.si); setSlope(data.slope); setRating(data.rating); }} />}
         
-        {/* Error Banner */}
+        <h2 className="text-xl font-bold mb-4 flex items-center"><Settings size={20} className="mr-2"/> Game Setup</h2>
         {error && <div className="w-full max-w-md p-3 bg-red-500/20 border border-red-500/50 text-red-200 rounded-lg text-sm text-center mb-4 flex items-center justify-center animate-in fade-in"><AlertCircle size={16} className="mr-2"/>{error}</div>}
 
         <div className="w-full max-w-md bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-6">
-            
-            {/* 1. Host Player Details */}
+            {/* Host Player */}
             <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
-                <label className="text-xs font-bold text-emerald-400 uppercase flex items-center mb-3">
-                    <User size={12} className="mr-1"/> Host Player (You)
-                </label>
+                <label className="text-xs font-bold text-emerald-400 uppercase flex items-center mb-3"><User size={12} className="mr-1"/> Host Player (You)</label>
                 <div className="flex gap-3">
-                    <input 
-                        className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500 w-0"
-                        placeholder="Your Name"
-                        value={playerName}
-                        onChange={(e) => setPlayerName(e.target.value)}
-                    />
-                    <input 
-                        type="number"
-                        className="w-20 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                        placeholder="HCP"
-                        value={handicapIndex}
-                        onChange={(e) => setHandicapIndex(e.target.value)}
-                    />
+                    <input className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500 w-0" placeholder="Your Name" value={playerName} onChange={(e) => setPlayerName(e.target.value)} />
+                    <input type="number" className="w-20 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="HCP" value={handicapIndex} onChange={(e) => setHandicapIndex(e.target.value)} />
                 </div>
             </div>
 
-            {/* 2. Roster Management */}
+            {/* Roster */}
             <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 space-y-4">
-                <label className="text-xs font-bold text-emerald-400 uppercase flex items-center">
-                    <Users size={12} className="mr-1"/> Add Players
-                </label>
-
-                {/* Ad-hoc Add */}
+                <label className="text-xs font-bold text-emerald-400 uppercase flex items-center"><Users size={12} className="mr-1"/> Add Players</label>
                 <div className="flex gap-2 items-center">
-                    <input 
-                        className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500 w-0"
-                        placeholder="Guest Name"
-                        value={adhocName}
-                        onChange={(e) => setAdhocName(e.target.value)}
-                    />
-                    <input 
-                        type="number"
-                        className="w-16 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                        placeholder="HCP"
-                        value={adhocHcp}
-                        onChange={(e) => setAdhocHcp(e.target.value)}
-                    />
-                    <button 
-                        onClick={addAdhoc} 
-                        disabled={!adhocName.trim()} 
-                        className="bg-emerald-600 text-white px-3 rounded-lg font-bold disabled:opacity-50 active:scale-95 transition-transform h-10 flex items-center justify-center flex-shrink-0"
-                    >
-                        <Plus size={16} />
-                    </button>
+                    <input className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500 w-0" placeholder="Guest Name" value={adhocName} onChange={(e) => setAdhocName(e.target.value)} />
+                    <input type="number" className="w-16 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="HCP" value={adhocHcp} onChange={(e) => setAdhocHcp(e.target.value)} />
+                    <button type="button" onClick={addAdhoc} disabled={!adhocName.trim()} className="bg-emerald-600 text-white px-3 rounded-lg font-bold disabled:opacity-50 active:scale-95 transition-transform h-10 flex items-center justify-center flex-shrink-0"><Plus size={16} /></button>
                 </div>
-
-                {/* Portal Select */}
                 {savedPlayers && savedPlayers.length > 0 && (
                     <div className="space-y-1">
                         <div className="text-[10px] text-slate-500 uppercase font-bold">From Portal</div>
                         <div className="max-h-32 overflow-y-auto pr-1">
                             {savedPlayers.map(p => (
-                                <button
-                                    key={p.id}
-                                    onClick={() => toggleFriend(p.id)}
-                                    className={`w-full flex items-center justify-between p-2 rounded-lg border text-xs mb-1 transition-all ${
-                                        selectedFriends.has(p.id) 
-                                        ? 'bg-emerald-600/20 border-emerald-600 text-white' 
-                                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'
-                                    }`}
-                                >
+                                <button type="button" key={p.id} onClick={() => toggleFriend(p.id)} className={`w-full flex items-center justify-between p-2 rounded-lg border text-xs mb-1 transition-all ${selectedFriends.has(p.id) ? 'bg-emerald-600/20 border-emerald-600 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'}`}>
                                     <span className="truncate mr-2">{p.name}</span>
-                                    <div className="flex-shrink-0">
-                                        {selectedFriends.has(p.id) ? <CheckSquare size={14} className="text-emerald-500"/> : <Square size={14} />}
-                                    </div>
+                                    <div className="flex-shrink-0">{selectedFriends.has(p.id) ? <CheckSquare size={14} className="text-emerald-500"/> : <Square size={14} />}</div>
                                 </button>
                             ))}
                         </div>
                     </div>
                 )}
-
-                {/* Roster Preview */}
                 {(playerName || selectedFriends.size > 0 || adhocGuests.length > 0) && (
                     <div className="bg-slate-900 rounded-lg p-2 border border-slate-800">
                         <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Who's Playing?</div>
                         <div className="flex flex-wrap gap-2">
-                            {playerName && (
-                                <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded border border-emerald-500/30 flex items-center">
-                                    {playerName} <UserCheck size={10} className="ml-1"/>
-                                </span>
-                            )}
-                            {savedPlayers.filter(p => selectedFriends.has(p.id)).map(p => (
-                                <span key={p.id} className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded border border-slate-700">
-                                    {p.name}
-                                </span>
-                            ))}
-                            {adhocGuests.map(g => (
-                                <span key={g.id} className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded border border-blue-500/30 flex items-center group">
-                                    {g.name} 
-                                    <button onClick={() => removeAdhoc(g.id)} className="ml-1 hover:text-white"><X size={10}/></button>
-                                </span>
-                            ))}
+                            {playerName && <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded border border-emerald-500/30 flex items-center">{playerName} <UserCheck size={10} className="ml-1"/></span>}
+                            {savedPlayers.filter(p => selectedFriends.has(p.id)).map(p => <span key={p.id} className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded border border-slate-700">{p.name}</span>)}
+                            {adhocGuests.map(g => <span key={g.id} className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded border border-blue-500/30 flex items-center group">{g.name} <button type="button" onClick={() => removeAdhoc(g.id)} className="ml-1 hover:text-white"><X size={10}/></button></span>)}
                         </div>
                     </div>
                 )}
             </div>
 
-            {/* 3. Course Details */}
+            {/* Course */}
             <div className="space-y-4">
                 <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 space-y-3">
-                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center">
-                        <BookOpen size={12} className="mr-1"/> Course
-                    </label>
+                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center"><BookOpen size={12} className="mr-1"/> Course</label>
                     <div className="flex gap-2">
-                        <input 
-                            className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500 w-0"
-                            value={courseName}
-                            onChange={(e) => setCourseName(e.target.value)}
-                            placeholder="Course Name"
-                        />
-                        <button onClick={() => setShowBrowser(true)} className="px-3 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors flex-shrink-0">
-                            <Globe size={18} />
-                        </button>
+                        <input className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500 w-0" value={courseName} onChange={(e) => setCourseName(e.target.value)} placeholder="Course Name" />
+                        <button type="button" onClick={() => setShowBrowser(true)} className="px-3 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors flex-shrink-0"><Globe size={18} /></button>
                     </div>
-                    
-                    <select 
-                        className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-slate-400 focus:outline-none focus:border-emerald-500"
-                        onChange={handlePresetChange}
-                        defaultValue=""
-                    >
+                    <select className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-slate-400 focus:outline-none focus:border-emerald-500" onChange={handlePresetChange} defaultValue="">
                         <option value="" disabled>Or select preset...</option>
                         <option value="olton_white">Olton GC - White (Men)</option>
                         <option value="olton_yellow">Olton GC - Yellow (Men)</option>
                         <option value="olton_red">Olton GC - Red (Ladies)</option>
                     </select>
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="text-xs font-bold text-slate-500 uppercase">Slope</label>
-                        <input 
-                            type="number"
-                            className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 focus:border-emerald-500 outline-none transition-colors"
-                            value={slope}
-                            onChange={(e) => setSlope(e.target.value)}
-                        />
-                    </div>
-                    <div>
-                        <label className="text-xs font-bold text-slate-500 uppercase">Rating</label>
-                        <input 
-                            type="number"
-                            className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 focus:border-emerald-500 outline-none transition-colors"
-                            value={rating}
-                            onChange={(e) => setRating(e.target.value)}
-                        />
-                    </div>
+                    <div><label className="text-xs font-bold text-slate-500 uppercase">Slope</label><input type="number" className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 focus:border-emerald-500 outline-none transition-colors" value={slope} onChange={(e) => setSlope(e.target.value)} /></div>
+                    <div><label className="text-xs font-bold text-slate-500 uppercase">Rating</label><input type="number" className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 focus:border-emerald-500 outline-none transition-colors" value={rating} onChange={(e) => setRating(e.target.value)} /></div>
                 </div>
-
-                <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Game Mode</label>
-                    <div className="grid grid-cols-2 gap-2">
-                        <ModeButton mode="stroke" icon={Target} label="Stroke Play" />
-                        <ModeButton mode="stableford" icon={Activity} label="Stableford" />
-                        <ModeButton mode="match" icon={Swords} label="Match Play" />
-                        <ModeButton mode="skins" icon={Gem} label="Skins" />
-                    </div>
-                </div>
+                <div><label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Game Mode</label><div className="grid grid-cols-2 gap-2"><ModeButton mode="stroke" icon={Target} label="Stroke Play" /><ModeButton mode="stableford" icon={Activity} label="Stableford" /><ModeButton mode="match" icon={Swords} label="Match Play" /><ModeButton mode="skins" icon={Gem} label="Skins" /></div></div>
             </div>
 
-            <button 
-                onClick={() => {
-                    const portalFriends = savedPlayers.filter(p => selectedFriends.has(p.id));
-                    const fullRoster = [...portalFriends, ...adhocGuests];
-                    createGame(fullRoster);
-                }}
-                className="w-full bg-emerald-600 py-4 rounded-xl font-bold mt-2 flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-lg shadow-emerald-900/50"
-            >
-                <Save size={18}/> Start Game
+            <button type="button" onClick={handleStartGame} disabled={isCreating} className="w-full bg-emerald-600 py-4 rounded-xl font-bold mt-2 flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-lg shadow-emerald-900/50 disabled:opacity-50">
+                {isCreating ? <Activity className="animate-spin" /> : <><Save size={18}/> Start Game</>}
             </button>
-            <button onClick={onCancel} className="w-full py-2 text-slate-500 text-sm hover:text-white">Cancel</button>
+            <button type="button" onClick={onCancel} className="w-full py-2 text-slate-500 text-sm hover:text-white">Cancel</button>
         </div>
     </div>
   );
@@ -720,7 +591,6 @@ const ScoreView = ({
   const holeSi = activeSi ? activeSi[currentHole - 1] : (currentHole);
   const [showAllPlayers, setShowAllPlayers] = useState(false);
 
-  // Group Logic
   const myGroup = myData.teeGroup;
   const relevantPlayers = useMemo(() => {
       if (showAllPlayers) return players;
@@ -1124,7 +994,7 @@ export default function App() {
 
   // Modified createGame to accept initial friends
   const createGame = async (friendsToAdd = []) => {
-      if (!playerName) { setError("Host name required"); return; }
+      if (!playerName) { throw new Error("Host name required"); }
       
       const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
       const settingsId = `SETTINGS_${newCode}`;
