@@ -67,7 +67,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = 'nils-pois-live-v2';
+const appId = 'nils-pois-live-v3';
 
 // --- Constants ---
 const COLLECTION_NAME = 'golf_scores';
@@ -130,7 +130,9 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
         if (!name.trim()) return;
         setSubmitting(true);
         try {
-            await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'saved_players'), {
+            // Explicit path construction for clarity
+            const playersRef = collection(db, 'artifacts', appId, 'users', userId, 'saved_players');
+            await addDoc(playersRef, {
                 name: name,
                 handicap: hcp || 0,
                 createdAt: new Date().toISOString()
@@ -220,6 +222,7 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
     );
 };
 
+// 2. Lobby View
 const LobbyView = ({ 
   playerName, setPlayerName, 
   joinCodeInput, setJoinCodeInput, 
@@ -934,11 +937,15 @@ export default function App() {
   // --- Fetch Saved Players ---
   useEffect(() => {
       if (!user) return;
+      // Added error logging for the snapshot listener
       const q = query(collection(db, 'artifacts', appId, 'users', user.uid, 'saved_players'));
       const unsubscribe = onSnapshot(q, (snapshot) => {
           const sp = [];
           snapshot.forEach(doc => sp.push({id: doc.id, ...doc.data()}));
           setSavedPlayers(sp);
+      }, (err) => {
+          console.error("Error fetching players:", err);
+          // Optional: Set a silent state or notify user if critical
       });
       return () => unsubscribe();
   }, [user]);
