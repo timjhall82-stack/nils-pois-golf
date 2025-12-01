@@ -90,9 +90,6 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const appId = 'nils-pois-live-v1';
 
-// ⚠️ HARDCODED ID - Ensures consistent data path
-const appId = "nils-pois-golf-v1"; 
-
 // --- Constants ---
 const COLLECTION_NAME = 'golf_scores';
 const DEFAULT_PARS = [4, 4, 3, 4, 4, 5, 4, 3, 5, 4, 4, 3, 5, 4, 4, 3, 5, 4];
