@@ -68,6 +68,9 @@ import {
   LogIn 
 } from 'lucide-react';
 
+// --- CONFIGURATION ---
+const APP_VERSION = "v1.0.5";
+
 // --- Firebase Initialization ---
 const firebaseConfig = {
   apiKey: "AIzaSyCllkJmbTVFmCIzkyIHXIO24FKlJ9i4VQg",
@@ -81,7 +84,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = 'nils-pois-live-v2';
+const appId = 'nils-pois-live-v1.0.5';
 
 // --- Constants ---
 const COLLECTION_NAME = 'golf_scores';
@@ -113,8 +116,16 @@ const PRESET_COURSES = {
 };
 
 // --- Helper Functions ---
+const calculateNetScore = (gross, holeIdx, ch, siList) => {
+    if (gross === 'NR' || !gross) return 'NR';
+    const holeSi = siList[holeIdx];
+    let strokesReceived = 0;
+    if (ch >= holeSi) strokesReceived = 1;
+    if (ch >= holeSi + 18) strokesReceived = 2; 
+    if (ch < 0 && Math.abs(ch) >= (19 - holeSi)) strokesReceived = -1;
+    return gross - strokesReceived;
+};
 
-// Calculates Course Handicap
 const calculateCourseHandicap = (index, slopeVal, ratingVal, parVal) => {
     if (!index || index === '') return 0;
     const idx = parseFloat(index);
@@ -124,13 +135,11 @@ const calculateCourseHandicap = (index, slopeVal, ratingVal, parVal) => {
     return Math.round(idx * (slp / 113) + (rtg - pr));
 };
 
-// Calculates shots received on a specific hole based on a handicap allowance
 const getShotsOnHole = (playingHandicap, holeSi) => {
     let shots = 0;
     if (playingHandicap >= holeSi) shots = 1;
     if (playingHandicap >= holeSi + 18) shots = 2;
     if (playingHandicap >= holeSi + 36) shots = 3;
-    // Handle plus handicaps (giving shots back)
     if (playingHandicap < 0 && Math.abs(playingHandicap) >= (19 - holeSi)) shots = -1;
     return shots;
 };
@@ -143,11 +152,10 @@ const SyncStatus = ({ status }) => {
     return <div className="flex items-center text-slate-500 text-[10px] font-medium bg-slate-800 px-2 py-1 rounded-full border border-slate-700 transition-all duration-500"><Check size={12} className="mr-1 text-emerald-500" /> Saved</div>;
 };
 
-// History, PlayerPortal, LobbyView, CourseBrowser, SetupView, TeeSheetModal 
-// (These components are UI mostly and unchanged, keeping for context)
 const HistoryView = ({ userId, onClose, onLoadGame }) => {
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
+
     useEffect(() => {
         const fetchHistory = async () => {
             try {
@@ -161,7 +169,7 @@ const HistoryView = ({ userId, onClose, onLoadGame }) => {
                     const settingsSnap = await getDoc(settingsRef);
                     if (settingsSnap.exists()) {
                         const settings = settingsSnap.data();
-                        return { id: gameId, courseName: settings.courseName, date: settings.createdAt };
+                        return { id: gameId, courseName: settings.courseName, date: settings.createdAt, myScore: playerData.scores, mode: settings.gameMode || 'stroke' };
                     }
                     return null;
                 });
@@ -171,9 +179,13 @@ const HistoryView = ({ userId, onClose, onLoadGame }) => {
         };
         fetchHistory();
     }, [userId]);
+
     return (
         <div className="fixed inset-0 bg-slate-950 z-[60] flex flex-col animate-in slide-in-from-bottom duration-300">
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900"><h3 className="font-bold text-white flex items-center text-lg"><History size={20} className="mr-2 text-purple-400" /> Game History</h3><button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X size={20} /></button></div>
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900">
+                <h3 className="font-bold text-white flex items-center text-lg"><History size={20} className="mr-2 text-purple-400" /> Game History</h3>
+                <button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X size={20} /></button>
+            </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {loading ? <div className="flex justify-center pt-10 text-slate-500"><Activity className="animate-spin" /></div> : history.length === 0 ? <div className="text-center text-slate-500 py-10">No games played yet.</div> : history.map(game => (
                         <button key={game.id} onClick={() => onLoadGame(game.id)} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-4 flex justify-between items-center hover:bg-slate-800 transition text-left group">
@@ -188,15 +200,49 @@ const HistoryView = ({ userId, onClose, onLoadGame }) => {
 };
 
 const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
-    const [name, setName] = useState(''); const [hcp, setHcp] = useState(''); const [submitting, setSubmitting] = useState(false);
-    const handleAdd = async (e) => { e.preventDefault(); if (!name.trim()) return; setSubmitting(true); try { await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'saved_players'), { name: name, handicap: hcp || 0, createdAt: new Date().toISOString() }); setName(''); setHcp(''); } catch (err) { alert("Error: " + err.message); } finally { setSubmitting(false); } };
-    const handleDelete = async (id) => { if (confirm("Remove player?")) { try { await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'saved_players', id)); } catch (err) { alert("Error: " + err.message); } } };
+    const [name, setName] = useState('');
+    const [hcp, setHcp] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+
+    const handleAdd = async (e) => {
+        e.preventDefault();
+        if (!name.trim()) return;
+        setSubmitting(true);
+        try {
+            await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'saved_players'), { name: name, handicap: hcp || 0, createdAt: new Date().toISOString() });
+            setName(''); setHcp('');
+        } catch (err) { alert("Error: " + err.message); } finally { setSubmitting(false); }
+    };
+
+    const handleDelete = async (id) => {
+        if (confirm("Remove player?")) { try { await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'saved_players', id)); } catch (err) { alert("Error: " + err.message); } }
+    };
+
     return (
         <div className="fixed inset-0 bg-black/90 z-[70] flex flex-col p-4 animate-in fade-in duration-200">
-            <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold text-white flex items-center"><Contact className="mr-2 text-blue-500" /> Player Portal</h2><button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X size={20} /></button></div>
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-white flex items-center"><Contact className="mr-2 text-blue-500" /> Player Portal</h2>
+                <button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X size={20} /></button>
+            </div>
             <div className="flex-1 overflow-y-auto space-y-6">
-                <div className="bg-slate-900 p-4 rounded-xl border border-slate-800"><h3 className="text-xs font-bold text-slate-500 uppercase mb-3">Add New Player</h3><div className="flex gap-2 items-center"><input className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-blue-500 outline-none w-0" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} /><input type="number" className="w-16 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-blue-500 outline-none" placeholder="HCP" value={hcp} onChange={(e) => setHcp(e.target.value)} /><button type="button" onClick={handleAdd} disabled={!name.trim() || submitting} className="bg-blue-600 text-white p-2 rounded-lg font-bold disabled:opacity-50 flex-shrink-0 w-10 flex items-center justify-center">{submitting ? <Activity className="animate-spin" size={16}/> : <Plus size={20} />}</button></div></div>
-                <div className="space-y-2"><h3 className="text-xs font-bold text-slate-500 uppercase ml-1">Saved Players</h3>{savedPlayers.map(p => (<div key={p.id} className="bg-slate-900 border border-slate-800 p-3 rounded-xl flex justify-between items-center"><div className="truncate pr-2"><div className="font-bold text-white truncate">{p.name}</div><div className="text-xs text-slate-500">HCP: {p.handicap}</div></div><button onClick={() => handleDelete(p.id)} className="p-2 text-slate-600 hover:text-red-500 transition flex-shrink-0"><Trash2 size={16} /></button></div>))}</div>
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase mb-3">Add New Player</h3>
+                    <div className="flex gap-2 items-center">
+                        <input className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-blue-500 outline-none w-0" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
+                        <input type="number" className="w-16 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-blue-500 outline-none" placeholder="HCP" value={hcp} onChange={(e) => setHcp(e.target.value)} />
+                        <button type="button" onClick={handleAdd} disabled={!name.trim() || submitting} className="bg-blue-600 text-white p-2 rounded-lg font-bold disabled:opacity-50 flex-shrink-0 w-10 flex items-center justify-center">{submitting ? <Activity className="animate-spin" size={16}/> : <Plus size={20} />}</button>
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase ml-1">Saved Players</h3>
+                    {savedPlayers.length === 0 ? <div className="text-center text-slate-600 py-8 text-sm">No players saved.</div> : savedPlayers.map(p => (
+                            <div key={p.id} className="bg-slate-900 border border-slate-800 p-3 rounded-xl flex justify-between items-center">
+                                <div className="truncate pr-2"><div className="font-bold text-white truncate">{p.name}</div><div className="text-xs text-slate-500">HCP: {p.handicap}</div></div>
+                                <button onClick={() => handleDelete(p.id)} className="p-2 text-slate-600 hover:text-red-500 transition flex-shrink-0"><Trash2 size={16} /></button>
+                            </div>
+                        ))
+                    }
+                </div>
             </div>
         </div>
     );
@@ -227,22 +273,111 @@ const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput,
         </div>
         <button type="button" onClick={handleJoinGame} className="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl font-bold shadow-lg shadow-blue-900/50 transition-all active:scale-95">Join Game</button>
     </div>
+
+    {/* VERSION NUMBER */}
+    <div className="mt-4 text-slate-700 text-[10px] font-mono opacity-50">Version {APP_VERSION}</div>
   </div>
 );
 
 const CourseBrowser = ({ onClose, onSelectCourse }) => {
-    const [loading, setLoading] = useState(true); const [searchTerm, setSearchTerm] = useState(''); const [items, setItems] = useState([]);
-    const [step, setStep] = useState('clubs'); const [selectedClub, setSelectedClub] = useState(null); const [selectedCourse, setSelectedCourse] = useState(null);
-    useEffect(() => { const fetchClubs = async () => { try { const res = await fetch('https://api.bthree.uk/golf/v1/clubs'); const data = await res.json(); setItems(data || []); } catch (e) { console.error(e); } finally { setLoading(false); } }; fetchClubs(); }, []);
-    const handleClubSelect = async (club) => { setLoading(true); setSelectedClub(club); try { const res = await fetch(`https://api.bthree.uk/golf/v1/clubs/${club.id}/courses`); const data = await res.json(); setItems(data || []); setStep('courses'); setSearchTerm(''); } catch (e) { console.error(e); } finally { setLoading(false); } };
-    const handleCourseSelect = async (course) => { setLoading(true); setSelectedCourse(course); try { const res = await fetch(`https://api.bthree.uk/golf/v1/courses/${course.id}/markers`); const data = await res.json(); setItems(data || []); setStep('tees'); } catch (e) { console.error(e); } finally { setLoading(false); } };
-    const handleTeeSelect = async (tee) => { setLoading(true); try { const res = await fetch(`https://api.bthree.uk/golf/v1/markers/${tee.id}/holes`); const holes = await res.json(); const pars = new Array(18).fill(4); const si = new Array(18).fill(18); if (Array.isArray(holes)) { holes.forEach(h => { const idx = h.number - 1; if (idx >= 0 && idx < 18) { pars[idx] = h.par || 4; si[idx] = h.stroke_index || (idx + 1); } }); } onSelectCourse({ name: `${selectedClub.name} - ${tee.colour}`, pars, si, slope: 113, rating: 72 }); onClose(); } catch (e) { alert("Could not load data."); } finally { setLoading(false); } };
-    const filteredItems = items.filter(i => (i.name || i.colour || '').toLowerCase().includes(searchTerm.toLowerCase()));
+    const [step, setStep] = useState('clubs'); 
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [items, setItems] = useState([]);
+    const [selectedClub, setSelectedClub] = useState(null);
+    const [selectedCourse, setSelectedCourse] = useState(null);
+
+    useEffect(() => {
+        const fetchClubs = async () => {
+            try {
+                const res = await fetch('https://api.bthree.uk/golf/v1/clubs');
+                if (!res.ok) throw new Error("API Error");
+                const data = await res.json();
+                setItems(data || []);
+            } catch (e) { console.error(e); setItems([]); } finally { setLoading(false); }
+        };
+        fetchClubs();
+    }, []);
+
+    const handleClubSelect = async (club) => {
+        setLoading(true);
+        setSelectedClub(club);
+        try {
+            const res = await fetch(`https://api.bthree.uk/golf/v1/clubs/${club.id}/courses`);
+            const data = await res.json();
+            setItems(data || []);
+            setStep('courses');
+            setSearchTerm('');
+        } catch (e) { console.error(e); } finally { setLoading(false); }
+    };
+
+    const handleCourseSelect = async (course) => {
+        setLoading(true);
+        setSelectedCourse(course);
+        try {
+            const res = await fetch(`https://api.bthree.uk/golf/v1/courses/${course.id}/markers`);
+            const data = await res.json();
+            setItems(data || []);
+            setStep('tees');
+        } catch (e) { console.error(e); } finally { setLoading(false); }
+    };
+
+    const handleTeeSelect = async (tee) => {
+        setLoading(true);
+        try {
+            const res = await fetch(`https://api.bthree.uk/golf/v1/markers/${tee.id}/holes`);
+            const holes = await res.json();
+            const pars = new Array(18).fill(4);
+            const si = new Array(18).fill(18);
+            if (Array.isArray(holes)) {
+                holes.forEach(h => {
+                    const idx = h.number - 1;
+                    if (idx >= 0 && idx < 18) {
+                        pars[idx] = h.par || 4;
+                        si[idx] = h.stroke_index || (idx + 1);
+                    }
+                });
+            }
+            onSelectCourse({ name: `${selectedClub.name} - ${tee.colour}`, pars, si, slope: 113, rating: 72 });
+            onClose();
+        } catch (e) { alert("Could not load data."); } finally { setLoading(false); }
+    };
+
+    const filteredItems = items.filter(i => {
+        const name = i.name || i.colour || '';
+        return name.toLowerCase().includes(searchTerm.toLowerCase());
+    });
+
     return (
         <div className="fixed inset-0 bg-slate-950 z-[60] flex flex-col animate-in fade-in duration-200">
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900"><h3 className="font-bold text-white flex items-center"><Globe size={18} className="mr-2 text-blue-400" /> {step}</h3><button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X size={20} /></button></div>
-            <div className="p-2 bg-slate-900 border-b border-slate-800"><div className="flex bg-slate-800 rounded-lg p-2 items-center"><Search size={16} className="text-slate-500 mr-2" /><input className="bg-transparent flex-1 text-sm text-white outline-none placeholder:text-slate-600" placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} autoFocus /></div></div>
-            <div className="flex-1 overflow-y-auto p-2 space-y-1">{loading ? <div className="flex justify-center pt-10 text-slate-500"><DownloadCloud className="animate-bounce" /></div> : filteredItems.map(item => (<button key={item.id} onClick={() => { if (step === 'clubs') handleClubSelect(item); if (step === 'courses') handleCourseSelect(item); if (step === 'tees') handleTeeSelect(item); }} className="w-full text-left p-4 bg-slate-900/50 border border-slate-800 rounded-xl hover:bg-slate-800 hover:border-slate-700 transition flex justify-between items-center group"><span className="font-medium text-slate-200">{item.name || item.colour}</span><ChevronRight size={16} className="text-slate-600 group-hover:text-blue-400" /></button>))}</div>
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900">
+                <h3 className="font-bold text-white flex items-center">
+                    <Globe size={18} className="mr-2 text-blue-400" />
+                    {step === 'clubs' && "Select Club"}
+                    {step === 'courses' && selectedClub?.name}
+                    {step === 'tees' && selectedCourse?.name}
+                </h3>
+                <button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X size={20} /></button>
+            </div>
+            <div className="p-2 bg-slate-900 border-b border-slate-800">
+                <div className="flex bg-slate-800 rounded-lg p-2 items-center">
+                    <Search size={16} className="text-slate-500 mr-2" />
+                    <input className="bg-transparent flex-1 text-sm text-white outline-none placeholder:text-slate-600" placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} autoFocus />
+                </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                {loading ? <div className="flex justify-center pt-10 text-slate-500"><DownloadCloud className="animate-bounce" /></div> : filteredItems.map(item => (
+                        <button key={item.id} onClick={() => {
+                                if (step === 'clubs') handleClubSelect(item);
+                                if (step === 'courses') handleCourseSelect(item);
+                                if (step === 'tees') handleTeeSelect(item);
+                            }} className="w-full text-left p-4 bg-slate-900/50 border border-slate-800 rounded-xl hover:bg-slate-800 hover:border-slate-700 transition flex justify-between items-center group">
+                            <span className="font-medium text-slate-200">{item.name || item.colour}</span>
+                            <ChevronRight size={16} className="text-slate-600 group-hover:text-blue-400" />
+                        </button>
+                    ))
+                }
+            </div>
         </div>
     );
 };
@@ -255,11 +390,20 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
   const [adhocGuests, setAdhocGuests] = useState([]);
   const [isCreating, setIsCreating] = useState(false);
 
-  const handlePresetChange = (e) => { const key = e.target.value; if (key && PRESET_COURSES[key]) { const c = PRESET_COURSES[key]; setCourseName(c.name); setSlope(c.slope); setRating(c.rating); setPars(c.pars); if (c.si) setSi(c.si); } };
+  const handlePresetChange = (e) => {
+    const key = e.target.value;
+    if (key && PRESET_COURSES[key]) {
+      const c = PRESET_COURSES[key];
+      setCourseName(c.name); setSlope(c.slope); setRating(c.rating); setPars(c.pars); if (c.si) setSi(c.si);
+    }
+  };
   const toggleFriend = (id) => { const newSet = new Set(selectedFriends); if (newSet.has(id)) newSet.delete(id); else newSet.add(id); setSelectedFriends(newSet); };
   const addAdhoc = (e) => { e.preventDefault(); if (!adhocName.trim()) return; const newGuest = { id: `temp_${Date.now()}`, name: adhocName, handicap: adhocHcp || 0 }; setAdhocGuests(prev => [...prev, newGuest]); setAdhocName(''); setAdhocHcp(''); };
   const removeAdhoc = (id) => { setAdhocGuests(prev => prev.filter(g => g.id !== id)); };
-  const handleStartGame = async () => { setIsCreating(true); try { const portalFriends = savedPlayers.filter(p => selectedFriends.has(p.id)); const fullRoster = [...portalFriends, ...adhocGuests]; await createGame(fullRoster); } catch(e) { alert("Error creating game: " + e.message); setIsCreating(false); } };
+  const handleStartGame = async () => {
+      setIsCreating(true);
+      try { const portalFriends = savedPlayers.filter(p => selectedFriends.has(p.id)); const fullRoster = [...portalFriends, ...adhocGuests]; await createGame(fullRoster); } catch(e) { alert("Error creating game: " + e.message); setIsCreating(false); }
+  };
   const ModeButton = ({ mode, icon: Icon, label }) => (<button onClick={() => setGameMode(mode)} className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${gameMode === mode ? 'border-emerald-500 bg-emerald-500/20 text-white' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-500'}`}><Icon size={20} className="mb-1" /><span className="text-[10px] font-bold uppercase">{label}</span></button>);
 
   return (
@@ -269,14 +413,41 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
         {error && <div className="w-full max-w-md p-3 bg-red-500/20 border border-red-500/50 text-red-200 rounded-lg text-sm text-center mb-4 flex items-center justify-center animate-in fade-in"><AlertCircle size={16} className="mr-2"/>{error}</div>}
         <div className="w-full max-w-md bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-6">
             <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
-                <div className="flex justify-between items-center mb-3"><label className="text-xs font-bold text-emerald-400 uppercase flex items-center"><User size={12} className="mr-1"/> Host Player (You)</label>{savedPlayers && savedPlayers.length > 0 && (<select className="bg-slate-800 text-xs text-blue-400 border border-slate-700 rounded px-2 py-1 outline-none max-w-[120px]" onChange={(e) => { const p = savedPlayers.find(sp => sp.id === e.target.value); if(p) { setPlayerName(p.name); setHandicapIndex(p.handicap); } }} value=""><option value="" disabled>Load Profile...</option>{savedPlayers.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}</select>)}</div>
+                <div className="flex justify-between items-center mb-3">
+                    <label className="text-xs font-bold text-emerald-400 uppercase flex items-center"><User size={12} className="mr-1"/> Host Player (You)</label>
+                    {savedPlayers && savedPlayers.length > 0 && (
+                        <select className="bg-slate-800 text-xs text-blue-400 border border-slate-700 rounded px-2 py-1 outline-none max-w-[120px]" onChange={(e) => { const p = savedPlayers.find(sp => sp.id === e.target.value); if(p) { setPlayerName(p.name); setHandicapIndex(p.handicap); } }} value=""><option value="" disabled>Load Profile...</option>{savedPlayers.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}</select>
+                    )}
+                </div>
                 <div className="flex gap-3"><input className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500 w-0" placeholder="Your Name" value={playerName} onChange={(e) => setPlayerName(e.target.value)} /><input type="number" className="w-20 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="HCP" value={handicapIndex} onChange={(e) => setHandicapIndex(e.target.value)} /></div>
             </div>
             <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 space-y-4">
                 <label className="text-xs font-bold text-emerald-400 uppercase flex items-center"><Users size={12} className="mr-1"/> Add Players</label>
-                <div className="flex gap-2 items-center"><input className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500 w-0" placeholder="Guest Name" value={adhocName} onChange={(e) => setAdhocName(e.target.value)} /><input type="number" className="w-16 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="HCP" value={adhocHcp} onChange={(e) => setAdhocHcp(e.target.value)} /><button type="button" onClick={addAdhoc} disabled={!adhocName.trim()} className="bg-emerald-600 text-white px-3 rounded-lg font-bold disabled:opacity-50 active:scale-95 transition-transform h-10 flex items-center justify-center flex-shrink-0"><Plus size={16} /></button></div>
-                {savedPlayers && savedPlayers.length > 0 && (<div className="space-y-1"><div className="text-[10px] text-slate-500 uppercase font-bold">From Portal</div><div className="max-h-32 overflow-y-auto pr-1">{savedPlayers.map(p => (<button type="button" key={p.id} onClick={() => toggleFriend(p.id)} className={`w-full flex items-center justify-between p-2 rounded-lg border text-xs mb-1 transition-all ${selectedFriends.has(p.id) ? 'bg-emerald-600/20 border-emerald-600 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'}`}><span className="truncate mr-2">{p.name}</span><div className="flex-shrink-0">{selectedFriends.has(p.id) ? <CheckSquare size={14} className="text-emerald-500"/> : <Square size={14} />}</div></button>))}</div></div>)}
-                {(playerName || selectedFriends.size > 0 || adhocGuests.length > 0) && (<div className="bg-slate-900 rounded-lg p-2 border border-slate-800"><div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Who's Playing?</div><div className="flex flex-wrap gap-2">{playerName && <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded border border-emerald-500/30 flex items-center">{playerName} <UserCheck size={10} className="ml-1"/></span>}{savedPlayers.filter(p => selectedFriends.has(p.id)).map(p => <span key={p.id} className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded border border-slate-700">{p.name}</span>)}{adhocGuests.map(g => <span key={g.id} className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded border border-blue-500/30 flex items-center group">{g.name} <button type="button" onClick={() => removeAdhoc(g.id)} className="ml-1 hover:text-white"><X size={10}/></button></span>)}</div></div>)}
+                <div className="flex gap-2 items-center">
+                    <input className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500 w-0" placeholder="Guest Name" value={adhocName} onChange={(e) => setAdhocName(e.target.value)} />
+                    <input type="number" className="w-16 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="HCP" value={adhocHcp} onChange={(e) => setAdhocHcp(e.target.value)} />
+                    <button type="button" onClick={addAdhoc} disabled={!adhocName.trim()} className="bg-emerald-600 text-white px-3 rounded-lg font-bold disabled:opacity-50 active:scale-95 transition-transform h-10 flex items-center justify-center flex-shrink-0"><Plus size={16} /></button>
+                </div>
+                {savedPlayers && savedPlayers.length > 0 && (
+                    <div className="space-y-1">
+                        <div className="text-[10px] text-slate-500 uppercase font-bold">From Portal</div>
+                        <div className="max-h-32 overflow-y-auto pr-1">
+                            {savedPlayers.map(p => (
+                                <button type="button" key={p.id} onClick={() => toggleFriend(p.id)} className={`w-full flex items-center justify-between p-2 rounded-lg border text-xs mb-1 transition-all ${selectedFriends.has(p.id) ? 'bg-emerald-600/20 border-emerald-600 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'}`}><span className="truncate mr-2">{p.name}</span><div className="flex-shrink-0">{selectedFriends.has(p.id) ? <CheckSquare size={14} className="text-emerald-500"/> : <Square size={14} />}</div></button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                {(playerName || selectedFriends.size > 0 || adhocGuests.length > 0) && (
+                    <div className="bg-slate-900 rounded-lg p-2 border border-slate-800">
+                        <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Who's Playing?</div>
+                        <div className="flex flex-wrap gap-2">
+                            {playerName && <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded border border-emerald-500/30 flex items-center">{playerName} <UserCheck size={10} className="ml-1"/></span>}
+                            {savedPlayers.filter(p => selectedFriends.has(p.id)).map(p => <span key={p.id} className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded border border-slate-700">{p.name}</span>)}
+                            {adhocGuests.map(g => <span key={g.id} className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded border border-blue-500/30 flex items-center group">{g.name} <button type="button" onClick={() => removeAdhoc(g.id)} className="ml-1 hover:text-white"><X size={10}/></button></span>)}
+                        </div>
+                    </div>
+                )}
             </div>
             <div className="space-y-4">
                 <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 space-y-3"><label className="text-xs font-bold text-slate-500 uppercase flex items-center"><BookOpen size={12} className="mr-1"/> Course</label><div className="flex gap-2"><input className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500 w-0" value={courseName} onChange={(e) => setCourseName(e.target.value)} placeholder="Course Name" /><button type="button" onClick={() => setShowBrowser(true)} className="px-3 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors flex-shrink-0"><Globe size={18} /></button></div><select className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-slate-400 focus:outline-none focus:border-emerald-500" onChange={handlePresetChange} defaultValue=""><option value="" disabled>Or select preset...</option><option value="olton_white">Olton GC - White (Men)</option><option value="olton_yellow">Olton GC - Yellow (Men)</option><option value="olton_red">Olton GC - Red (Ladies)</option></select></div>
@@ -290,7 +461,11 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
   );
 };
 
-const ScoreView = ({ currentHole, setCurrentHole, currentHoleScore, updateScore, activePars, myData, activeGameMode, activeSi, players, user, syncStatus, leaveGame }) => {
+const ScoreView = ({
+  currentHole, setCurrentHole, currentHoleScore, updateScore,
+  activePars, myData, activeGameMode, activeSi, players, user,
+  syncStatus, leaveGame
+}) => {
   const holePar = activePars[currentHole - 1];
   const holeSi = activeSi ? activeSi[currentHole - 1] : (currentHole);
   const [showAllPlayers, setShowAllPlayers] = useState(false);
@@ -315,32 +490,12 @@ const ScoreView = ({ currentHole, setCurrentHole, currentHoleScore, updateScore,
                   const isNR = score === 'NR';
                   const displayVal = isNR ? 'NR' : (score || holePar);
                   const isEntered = score !== undefined && score !== 0;
-
-                  // Net Score
-                  let net;
-                  if (isNR) {
-                      net = 'NR';
-                  } else {
-                      // Normal net calc
-                      net = calculateNetScore(score || holePar, currentHole - 1, p.courseHandicap || 0, activeSi || DEFAULT_SI);
-                  }
-
+                  const net = calculateNetScore(score || holePar, currentHole - 1, p.courseHandicap || 0, activeSi || DEFAULT_SI);
                   let statPreview = "";
                   if (activeGameMode === 'stableford') {
-                      // For Stableford, convert score to points
-                      // NR = 0 pts
-                      const pts = (isNR || net === 'NR') ? 0 : Math.max(0, holePar - net + 2);
+                      const pts = net === 'NR' ? 0 : Math.max(0, holePar - net + 2);
                       statPreview = `${pts} pts`;
-                  } else if (activeGameMode === 'match' || activeGameMode === 'skins') {
-                      // For Match/Skins, we need to know strokes RECEIVED relative to the baseline
-                      // The leaderboard does this calculation globally.
-                      // For the individual hole card, it's tricky to show "Shot Diff" without context of who we are comparing to.
-                      // Let's stick to Net Score for the card view, as the Leaderboard shows the relative status.
-                      statPreview = `Net ${net}`;
-                  } else {
-                      statPreview = `Net ${net}`;
-                  }
-
+                  } else { statPreview = `Net ${net}`; }
                   const diff = displayVal - holePar;
                   let colorClass = "text-slate-400";
                   if (isEntered && !isNR) {
@@ -442,9 +597,11 @@ export default function App() {
   const [playerName, setPlayerName] = useState('');
   const [handicapIndex, setHandicapIndex] = useState('');
   const [savedPlayers, setSavedPlayers] = useState([]);
-  const [syncStatus, setSyncStatus] = useState('saved');
+  const [syncStatus, setSyncStatus] = useState('saved'); // saved, saving, error
+  
   const [players, setPlayers] = useState([]);
   const [gameSettings, setGameSettings] = useState(null);
+  
   const [view, setView] = useState('lobby'); 
   const [currentHole, setCurrentHole] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -454,8 +611,10 @@ export default function App() {
   const [showTeeSheet, setShowTeeSheet] = useState(false);
   const [showPortal, setShowPortal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  
   const [newGuestName, setNewGuestName] = useState('');
   const [newGuestHcp, setNewGuestHcp] = useState('');
+  
   const [courseName, setCourseName] = useState('');
   const [slope, setSlope] = useState('113');
   const [rating, setRating] = useState('72.0');
@@ -584,29 +743,15 @@ export default function App() {
   const activeGameMode = gameSettings?.gameMode || 'stroke';
 
   const leaderboardData = useMemo(() => {
-    // NEW: Calculate baseline for handicap strokes (Lowest handicap in field)
     let lowestHcp = 999;
     players.forEach(p => { if(p.courseHandicap < lowestHcp) lowestHcp = p.courseHandicap; });
-    // If no players or empty, default to 0
     if (lowestHcp === 999) lowestHcp = 0;
 
     const playerDetails = players.map(p => {
         const scores = p.scores || {};
         const ch = p.courseHandicap || 0;
         const netScores = {};
-        
-        activePars.forEach((_, idx) => {
-            const h = idx + 1;
-            if (scores[h]) {
-                // Standard Net Score (Full Handicap) - Used for Stableford/Stroke Net
-                // Note: calculateNetScore function applies handicap to gross. 
-                // We can reuse it for standard net.
-                // BUT for Match Play / Skins, we need the relative strokes.
-                
-                // Let's store standard net
-                netScores[h] = calculateNetScore(scores[h], idx, ch, activeSi);
-            }
-        });
+        activePars.forEach((_, idx) => { const h = idx + 1; if (scores[h]) { netScores[h] = calculateNetScore(scores[h], idx, ch, activeSi); } });
         return { ...p, netScores, scores, ch };
     });
 
@@ -615,18 +760,14 @@ export default function App() {
         let pot = 1;
         playerDetails.forEach(p => skinsWon[p.id] = 0);
         for (let i = 1; i <= 18; i++) {
-            // Calculate specific Skins Net (based on lowest hcp in field)
             const holeScores = playerDetails.map(p => {
                  const s = p.scores[i];
-                 if (!s || s === 'NR') return { id: p.id, net: 'NR' }; // No score or NR
-                 
-                 // Shots received relative to lowest
+                 if (!s || s === 'NR') return { id: p.id, net: 'NR' }; 
                  const strokesRec = getShotsOnHole(p.ch - lowestHcp, activeSi[i-1]);
                  return { id: p.id, net: s - strokesRec };
             }).filter(s => s.net !== 'NR');
 
             if (holeScores.length === 0) continue; 
-            
             const minVal = Math.min(...holeScores.map(s => s.net));
             const winners = holeScores.filter(s => s.net === minVal);
             if (winners.length === 1) { skinsWon[winners[0].id] += pot; pot = 1; } else { pot += 1; }
@@ -639,8 +780,6 @@ export default function App() {
         playerDetails.forEach(opponent => {
             if (opponent.userId === user.uid) { matchStatus[opponent.id] = "-"; return; }
             let myWins = 0; let opWins = 0;
-            
-            // Calculate handicap difference for this specific pair
             const lowerCH = Math.min(myPlayer.ch, opponent.ch);
             const myPlayingHcp = myPlayer.ch - lowerCH;
             const opPlayingHcp = opponent.ch - lowerCH;
@@ -648,24 +787,14 @@ export default function App() {
             for (let i = 1; i <= 18; i++) {
                 const myGross = myPlayer.scores[i];
                 const opGross = opponent.scores[i];
-                
-                // Handle NR logic for Match Play
                 const myIsNR = myGross === 'NR' || !myGross;
                 const opIsNR = opGross === 'NR' || !opGross;
 
                 if (!myIsNR && !opIsNR) {
-                     // Calculate net based on difference
                      const myNet = myGross - getShotsOnHole(myPlayingHcp, activeSi[i-1]);
                      const opNet = opGross - getShotsOnHole(opPlayingHcp, activeSi[i-1]);
-                     
-                     if (myNet < opNet) myWins++;
-                     else if (opNet < myNet) opWins++;
-                } else if (myIsNR && !opIsNR) {
-                    opWins++; // I NR'd, opponent didn't -> they win
-                } else if (!myIsNR && opIsNR) {
-                    myWins++; // They NR'd, I didn't -> I win
-                }
-                // If both NR, hole is halved (no change)
+                     if (myNet < opNet) myWins++; else if (opNet < myNet) opWins++;
+                } else if (myIsNR && !opIsNR) { opWins++; } else if (!myIsNR && opIsNR) { myWins++; }
             }
             const diff = myWins - opWins;
             if (diff === 0) matchStatus[opponent.id] = "AS"; else if (diff > 0) matchStatus[opponent.id] = `${diff} DN`; else matchStatus[opponent.id] = `${Math.abs(diff)} UP`;
@@ -677,31 +806,21 @@ export default function App() {
         activePars.forEach((par, idx) => {
             const holeNum = idx + 1; const s = player.scores[holeNum];
             if (s && s !== 'NR') { 
-                gross += s; 
-                holesPlayed++; 
-                // Standard Net for Stableford/Stroke
+                gross += s; holesPlayed++; 
                 const net = player.netScores[holeNum]; 
                 if (net !== null && net !== 'NR') { 
                     const pts = Math.max(0, par - net + 2); 
                     totalPoints += pts; 
                 } 
-            }
-            else if (s === 'NR') { holesPlayed++; } 
+            } else if (s === 'NR') { holesPlayed++; } 
         });
         
         let parForHolesPlayed = 0; Object.keys(player.scores).forEach(holeKey => { parForHolesPlayed += activePars[parseInt(holeKey)-1]; });
-        
-        // For Stroke Play sorting: Treat NR as massive score
         const grossToPar = (gross === 0 && holesPlayed > 0) ? 999 : (gross - parForHolesPlayed);
         const netTotal = (gross === 0 && holesPlayed > 0) ? 999 : (gross - Math.round(player.ch * (holesPlayed/18)));
 
         return { 
-            ...player, 
-            gross, 
-            holesPlayed, 
-            grossToPar, 
-            netTotal, 
-            totalPoints, 
+            ...player, gross, holesPlayed, grossToPar, netTotal, totalPoints, 
             matchStatus: matchStatus[player.id] || '-', 
             skinsWon: skinsWon[player.id] || 0, 
             displayScore: holesPlayed === 0 ? 'E' : (grossToPar === 999 ? 'NR' : (grossToPar === 0 ? 'E' : (grossToPar > 0 ? `+${grossToPar}` : grossToPar))) 
@@ -806,9 +925,19 @@ export default function App() {
         )}
 
         {/* Player Portal Modal */}
-        {showPortal && user && <PlayerPortal onClose={() => setShowPortal(false)} userId={user.uid} savedPlayers={savedPlayers} />}
-        {showHistory && user && <HistoryView userId={user.uid} onClose={() => setShowHistory(false)} onLoadGame={loadHistoricalGame} />}
-        {showTeeSheet && <TeeSheetModal onClose={() => setShowTeeSheet(false)} players={players} addGuest={addGuestPlayer} randomize={randomizeGroups} newGuestName={newGuestName} setNewGuestName={setNewGuestName} newGuestHcp={newGuestHcp} setNewGuestHcp={setNewGuestHcp} savedPlayers={savedPlayers} />}
+        {showPortal && user && (
+            <PlayerPortal onClose={() => setShowPortal(false)} userId={user.uid} savedPlayers={savedPlayers} />
+        )}
+
+        {/* History Modal */}
+        {showHistory && user && (
+            <HistoryView userId={user.uid} onClose={() => setShowHistory(false)} onLoadGame={loadHistoricalGame} />
+        )}
+
+        {/* Tee Sheet Modal */}
+        {showTeeSheet && (
+            <TeeSheetModal onClose={() => setShowTeeSheet(false)} players={players} addGuest={addGuestPlayer} randomize={randomizeGroups} newGuestName={newGuestName} setNewGuestName={setNewGuestName} newGuestHcp={newGuestHcp} setNewGuestHcp={setNewGuestHcp} savedPlayers={savedPlayers} />
+        )}
 
         {showExitModal && (
             <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
