@@ -22,6 +22,7 @@ import {
   writeBatch,
   addDoc,
   deleteDoc,
+  updateDoc, // Added for editing
   getDocs,
   orderBy
 } from 'firebase/firestore';
@@ -65,11 +66,12 @@ import {
   CloudOff, 
   FlagTriangleRight,
   Ban,
-  LogIn 
+  LogIn,
+  Edit // Added Edit Icon
 } from 'lucide-react';
 
 // --- CONFIGURATION ---
-const APP_VERSION = "v1.0.5";
+const APP_VERSION = "v1.0.6";
 
 // --- Firebase Initialization ---
 const firebaseConfig = {
@@ -84,7 +86,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = 'nils-pois-live-v1.0.5';
+const appId = 'nils-pois-live-v1';
 
 // --- Constants ---
 const COLLECTION_NAME = 'golf_scores';
@@ -202,46 +204,139 @@ const HistoryView = ({ userId, onClose, onLoadGame }) => {
 const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
     const [name, setName] = useState('');
     const [hcp, setHcp] = useState('');
+    const [editingId, setEditingId] = useState(null); // Track which player we are editing
     const [submitting, setSubmitting] = useState(false);
 
-    const handleAdd = async (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         if (!name.trim()) return;
         setSubmitting(true);
         try {
-            await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'saved_players'), { name: name, handicap: hcp || 0, createdAt: new Date().toISOString() });
-            setName(''); setHcp('');
-        } catch (err) { alert("Error: " + err.message); } finally { setSubmitting(false); }
+            if (editingId) {
+                // Update Existing
+                const playerRef = doc(db, 'artifacts', appId, 'users', userId, 'saved_players', editingId);
+                await updateDoc(playerRef, {
+                    name: name,
+                    handicap: hcp || 0,
+                    // Don't update createdAt, maybe add updatedAt
+                });
+                setEditingId(null);
+            } else {
+                // Create New
+                const playersRef = collection(db, 'artifacts', appId, 'users', userId, 'saved_players');
+                await addDoc(playersRef, {
+                    name: name,
+                    handicap: hcp || 0,
+                    createdAt: new Date().toISOString()
+                });
+            }
+            setName('');
+            setHcp('');
+        } catch (err) {
+            console.error("Error saving player", err);
+            alert("Error saving player: " + err.message);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleEdit = (player) => {
+        setName(player.name);
+        setHcp(player.handicap);
+        setEditingId(player.id);
+    };
+
+    const handleCancelEdit = () => {
+        setName('');
+        setHcp('');
+        setEditingId(null);
     };
 
     const handleDelete = async (id) => {
-        if (confirm("Remove player?")) { try { await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'saved_players', id)); } catch (err) { alert("Error: " + err.message); } }
+        if (confirm("Remove player from portal?")) {
+            try {
+                await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'saved_players', id));
+            } catch (err) {
+                alert("Error deleting: " + err.message);
+            }
+        }
     };
 
     return (
         <div className="fixed inset-0 bg-black/90 z-[70] flex flex-col p-4 animate-in fade-in duration-200">
             <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-white flex items-center"><Contact className="mr-2 text-blue-500" /> Player Portal</h2>
-                <button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X size={20} /></button>
+                <h2 className="text-xl font-bold text-white flex items-center">
+                    <Contact className="mr-2 text-blue-500" /> Player Portal
+                </h2>
+                <button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white">
+                    <X size={20} />
+                </button>
             </div>
+
             <div className="flex-1 overflow-y-auto space-y-6">
                 <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
-                    <h3 className="text-xs font-bold text-slate-500 uppercase mb-3">Add New Player</h3>
+                    <div className="flex justify-between items-center mb-3">
+                        <h3 className="text-xs font-bold text-slate-500 uppercase">
+                            {editingId ? 'Edit Player' : 'Add New Player'}
+                        </h3>
+                        {editingId && (
+                            <button onClick={handleCancelEdit} className="text-[10px] text-red-400 hover:underline">Cancel</button>
+                        )}
+                    </div>
+                    
                     <div className="flex gap-2 items-center">
-                        <input className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-blue-500 outline-none w-0" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-                        <input type="number" className="w-16 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-blue-500 outline-none" placeholder="HCP" value={hcp} onChange={(e) => setHcp(e.target.value)} />
-                        <button type="button" onClick={handleAdd} disabled={!name.trim() || submitting} className="bg-blue-600 text-white p-2 rounded-lg font-bold disabled:opacity-50 flex-shrink-0 w-10 flex items-center justify-center">{submitting ? <Activity className="animate-spin" size={16}/> : <Plus size={20} />}</button>
+                        <input 
+                            className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-blue-500 outline-none w-0"
+                            placeholder="Name"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                        />
+                        <input 
+                            type="number"
+                            className="w-16 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-blue-500 outline-none"
+                            placeholder="HCP"
+                            value={hcp}
+                            onChange={(e) => setHcp(e.target.value)}
+                        />
+                        <button 
+                            type="button"
+                            onClick={handleSubmit}
+                            disabled={!name.trim() || submitting}
+                            className={`text-white p-2 rounded-lg font-bold disabled:opacity-50 flex-shrink-0 w-10 flex items-center justify-center ${editingId ? 'bg-yellow-600' : 'bg-blue-600'}`}
+                        >
+                            {submitting ? <Activity className="animate-spin" size={16}/> : (editingId ? <Save size={20}/> : <Plus size={20} />)}
+                        </button>
                     </div>
                 </div>
+
                 <div className="space-y-2">
                     <h3 className="text-xs font-bold text-slate-500 uppercase ml-1">Saved Players</h3>
-                    {savedPlayers.length === 0 ? <div className="text-center text-slate-600 py-8 text-sm">No players saved.</div> : savedPlayers.map(p => (
-                            <div key={p.id} className="bg-slate-900 border border-slate-800 p-3 rounded-xl flex justify-between items-center">
-                                <div className="truncate pr-2"><div className="font-bold text-white truncate">{p.name}</div><div className="text-xs text-slate-500">HCP: {p.handicap}</div></div>
-                                <button onClick={() => handleDelete(p.id)} className="p-2 text-slate-600 hover:text-red-500 transition flex-shrink-0"><Trash2 size={16} /></button>
+                    {savedPlayers.length === 0 ? (
+                        <div className="text-center text-slate-600 py-8 text-sm">No players saved yet.</div>
+                    ) : (
+                        savedPlayers.map(p => (
+                            <div key={p.id} className={`bg-slate-900 border p-3 rounded-xl flex justify-between items-center ${editingId === p.id ? 'border-yellow-600/50 bg-yellow-900/10' : 'border-slate-800'}`}>
+                                <div className="truncate pr-2 flex-1">
+                                    <div className="font-bold text-white truncate">{p.name}</div>
+                                    <div className="text-xs text-slate-500">HCP: {p.handicap}</div>
+                                </div>
+                                <div className="flex gap-1">
+                                    <button 
+                                        onClick={() => handleEdit(p)}
+                                        className="p-2 text-slate-400 hover:text-yellow-500 transition flex-shrink-0"
+                                    >
+                                        <Edit size={16} />
+                                    </button>
+                                    <button 
+                                        onClick={() => handleDelete(p.id)}
+                                        className="p-2 text-slate-600 hover:text-red-500 transition flex-shrink-0"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
                             </div>
                         ))
-                    }
+                    )}
                 </div>
             </div>
         </div>
@@ -273,9 +368,7 @@ const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput,
         </div>
         <button type="button" onClick={handleJoinGame} className="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl font-bold shadow-lg shadow-blue-900/50 transition-all active:scale-95">Join Game</button>
     </div>
-
-    {/* VERSION NUMBER */}
-    <div className="mt-4 text-slate-700 text-[10px] font-mono opacity-50">Version {APP_VERSION}</div>
+    <div className="mt-4 text-slate-700 text-[10px] font-mono opacity-50">Version 1.0.6</div>
   </div>
 );
 
@@ -461,11 +554,7 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
   );
 };
 
-const ScoreView = ({
-  currentHole, setCurrentHole, currentHoleScore, updateScore,
-  activePars, myData, activeGameMode, activeSi, players, user,
-  syncStatus, leaveGame
-}) => {
+const ScoreView = ({ currentHole, setCurrentHole, currentHoleScore, updateScore, activePars, myData, activeGameMode, activeSi, players, user, syncStatus, leaveGame }) => {
   const holePar = activePars[currentHole - 1];
   const holeSi = activeSi ? activeSi[currentHole - 1] : (currentHole);
   const [showAllPlayers, setShowAllPlayers] = useState(false);
@@ -924,7 +1013,6 @@ export default function App() {
             </>
         )}
 
-        {/* Player Portal Modal */}
         {showPortal && user && (
             <PlayerPortal onClose={() => setShowPortal(false)} userId={user.uid} savedPlayers={savedPlayers} />
         )}
