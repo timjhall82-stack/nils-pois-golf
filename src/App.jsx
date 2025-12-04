@@ -109,6 +109,14 @@ const PRESET_COURSES = {
     si:   [11, 3, 13, 1, 15, 9, 5, 17, 7, 4, 14, 12, 18, 6, 8, 2, 16, 10]
   }
 };
+// --- CONFIGURATION & IMAGES ---
+const APP_VERSION = "v4";
+
+// 1. CUSTOM LOGO: Points to /public/Logo.png
+const CUSTOM_LOGO_URL = "/Logo.png"; 
+
+// 2. CUSTOM BACKGROUND: Dark Masters Green Texture
+const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
 
 // --- Firebase Initialization ---
 const firebaseConfig = {
