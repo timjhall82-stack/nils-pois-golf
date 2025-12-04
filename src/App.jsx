@@ -98,7 +98,8 @@ const db = getFirestore(app);
 const appId = 'nils-pois-live-v3';
 
 // --- Constants ---
-const COLLECTION_NAME = 'golf_scores';
+const COLLECTION_NAME = '
+_scores';
 const DEFAULT_PARS = [4, 4, 3, 4, 4, 5, 4, 3, 5, 4, 4, 3, 5, 4, 4, 3, 5, 4];
 const DEFAULT_SI = [1, 3, 5, 7, 9, 11, 13, 15, 17, 2, 4, 6, 8, 10, 12, 14, 16, 18]; 
 
@@ -389,8 +390,8 @@ const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput,
             className="w-48 h-48 mx-auto object-contain drop-shadow-2xl filter brightness-110" 
           />
       </div>
-      <h1 className="text-4xl font-black tracking-tighter text-white drop-shadow-lg">Nils Pois</h1>
-      <p className="text-emerald-400 text-xs font-bold tracking-widest uppercase">Golf - v3</p>
+      <h1 className="text-4xl font-black tracking-tighter text-white drop-shadow-lg">Nils Pois Golf</h1>
+      <p className="text-emerald-400 text-xs font-bold tracking-widest uppercase">&copy; 2025 Timah</p>
     </div>
     
     <div className="w-full max-w-sm bg-slate-900/60 backdrop-blur-md rounded-xl border border-white/10 p-3 flex justify-between items-center shadow-2xl">
