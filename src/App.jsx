@@ -74,7 +74,7 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & IMAGES ---
-const APP_VERSION = "v3";
+const APP_VERSION = "v4";
 
 // 1. CUSTOM LOGO: Points to /public/Logo.png
 const CUSTOM_LOGO_URL = "/Logo.png"; 
@@ -95,7 +95,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = 'nils-pois-live-v3';
+const appId = 'nils-pois-live-v4';
 
 // --- Constants ---
 const COLLECTION_NAME = 'golf_scores';
@@ -230,12 +230,10 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 
-                // Resize to 150px square max
                 const maxSize = 150;
                 let width = img.width;
                 let height = img.height;
                 
-                // Calculate aspect ratio
                 if (width > height) {
                     if (width > maxSize) {
                         height *= maxSize / width;
@@ -252,7 +250,6 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
                 canvas.height = height;
                 ctx.drawImage(img, 0, 0, width, height);
                 
-                // Compress to JPEG 70% quality
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
                 setImgUrl(dataUrl);
             };
@@ -312,7 +309,6 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
                     </div>
                     
                     <div className="flex gap-3 items-start">
-                        {/* Image Upload Circle */}
                         <div className="relative group">
                             <input 
                                 type="file" 
@@ -367,8 +363,8 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
                                     </div>
                                 </div>
                                 <div className="flex gap-1 flex-shrink-0">
-                                    <button onClick={() => handleEdit(p)} className="p-2 text-slate-400 hover:text-yellow-500 transition"><Edit size={16} /></button>
-                                    <button onClick={() => handleDelete(p.id)} className="p-2 text-slate-600 hover:text-red-500 transition"><Trash2 size={16} /></button>
+                                    <button onClick={() => handleEdit(p)} className="p-2 text-slate-400 hover:text-yellow-500 transition flex-shrink-0"><Edit size={16} /></button>
+                                    <button onClick={() => handleDelete(p.id)} className="p-2 text-slate-600 hover:text-red-500 transition flex-shrink-0"><Trash2 size={16} /></button>
                                 </div>
                             </div>
                         ))
@@ -722,14 +718,14 @@ const LeaderboardView = ({ leaderboardData, user, activeGameMode }) => (
 );
 
 const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestName, setNewGuestName, newGuestHcp, setNewGuestHcp, savedPlayers }) => {
+    const [targetGroupSize, setTargetGroupSize] = useState(4);
+    const [guestAvatar, setGuestAvatar] = useState('');
+
     const groupedPlayers = useMemo(() => {
         const groups = {}; const unassigned = [];
         players.forEach(p => { if (p.teeGroup) { if (!groups[p.teeGroup]) groups[p.teeGroup] = []; groups[p.teeGroup].push(p); } else { unassigned.push(p); } });
         return { groups, unassigned };
     }, [players]);
-
-    // Local state for Guest Avatar (Tee Sheet)
-    const [guestAvatar, setGuestAvatar] = useState('');
 
     return (
         <div className="fixed inset-0 bg-black/90 z-50 flex flex-col p-4 animate-in fade-in duration-200">
@@ -749,10 +745,34 @@ const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestName, se
                         <button onClick={(e) => { e.preventDefault(); addGuest(guestAvatar); setGuestAvatar(''); }} className="bg-emerald-600 text-white p-2 rounded-lg font-bold disabled:opacity-50" disabled={!newGuestName.trim()}><Plus size={20} /></button>
                     </div>
                 </div>
+
                 <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
                     <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center"><Shuffle size={12} className="mr-1"/> Shuffle Groups</h3>
-                    <div className="flex gap-3"><button onClick={() => randomize(3)} className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm text-slate-300">Groups of 3</button><button onClick={() => randomize(4)} className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm text-slate-300">Groups of 4</button></div>
+                    
+                    <div className="flex items-center justify-between mb-3">
+                         <span className="text-xs text-slate-400">Size per group:</span>
+                         <div className="flex bg-slate-950 rounded-lg p-1 border border-slate-700">
+                            {[2,3,4].map(size => (
+                                <button 
+                                    key={size} 
+                                    onClick={() => setTargetGroupSize(size)}
+                                    className={`px-4 py-1.5 rounded text-xs font-bold transition-all ${targetGroupSize === size ? 'bg-emerald-600 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}
+                                >
+                                    {size}
+                                </button>
+                            ))}
+                         </div>
+                    </div>
+
+                    <button 
+                        onClick={() => randomize(targetGroupSize)} 
+                        className="w-full py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm text-emerald-500 font-bold flex justify-center items-center transition-all active:scale-95"
+                    >
+                        <Shuffle size={16} className="mr-2"/> 
+                        Randomise All Players
+                    </button>
                 </div>
+
                 <div className="space-y-4">
                     {groupedPlayers.unassigned.length > 0 && (
                         <div className="bg-slate-900 rounded-xl border border-slate-800 p-3"><div className="text-xs font-bold text-slate-500 uppercase mb-2">Unassigned / Lobby</div>{groupedPlayers.unassigned.map(p => (<div key={p.id} className="py-2 border-b border-slate-800/50 last:border-0 text-sm flex justify-between items-center">
