@@ -73,7 +73,7 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & IMAGES ---
-const APP_VERSION = "v2.1";
+const APP_VERSION = "v2.3";
 
 // 1. CUSTOM LOGO: Points to /public/NilsPoisGolfMASTER.jpg
 const CUSTOM_LOGO_URL = "/NilsPoisGolfCircle.png"; 
@@ -94,7 +94,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = 'nils-pois-live-v2.1';
+const appId = 'nils-pois-live-v2.3';
 
 // --- Constants ---
 const COLLECTION_NAME = 'golf_scores';
@@ -280,8 +280,12 @@ const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput,
     <div className="text-center mb-4">
       {/* --- LOGO --- */}
       <div className="mb-2 relative z-10">
-           {/* Using class 'rounded-full' only if you want to clip it, removed to show full icon as user requested fill */}
-          <img src={CUSTOM_LOGO_URL} alt="Logo" className="w-40 h-40 mx-auto object-contain drop-shadow-2xl filter brightness-110" />
+          {/* Added 'rounded-full' to clip white corners and 'border' for a clean badge look */}
+          <img 
+            src={CUSTOM_LOGO_URL} 
+            alt="Logo" 
+            className="w-40 h-40 mx-auto object-cover rounded-full drop-shadow-2xl filter brightness-110 border-4 border-white/10" 
+          />
       </div>
       <h1 className="text-4xl font-black tracking-tighter text-white drop-shadow-lg">Nils Pois</h1>
       <p className="text-emerald-400 text-xs font-bold tracking-widest uppercase">Golf Society</p>
