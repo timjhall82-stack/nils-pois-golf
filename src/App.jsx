@@ -72,11 +72,11 @@ import {
   Edit,
   Camera,
   Users2,
-  Percent // For Handicap Diff Icon
+  Percent
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-const APP_VERSION = "v3.0";
+const APP_VERSION = "v5";
 const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
 
@@ -124,7 +124,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = 'nils-pois-live-v5';
 
 // --- Helper Functions ---
 const calculateNetScore = (gross, holeIdx, ch, siList) => {
@@ -545,7 +544,7 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
 const ScoreView = ({
   currentHole, setCurrentHole, currentHoleScore, updateScore,
   activePars, myData, activeGameMode, activeSi, players, user,
-  syncStatus, leaveGame, teamMode
+  syncStatus, leaveGame, teamMode, gameSettings
 }) => {
   const holePar = activePars[currentHole - 1];
   const holeSi = activeSi ? activeSi[currentHole - 1] : (currentHole);
@@ -556,6 +555,15 @@ const ScoreView = ({
       if (myGroup) { const groupMembers = players.filter(p => p.teeGroup === myGroup); if (!groupMembers.find(p => p.userId === user.uid)) return [myData, ...groupMembers]; return groupMembers; }
       return players;
   }, [players, myGroup, showAllPlayers, user, myData]);
+
+  // Calculate Baseline (Lowest HCP) if Diff Mode is ON
+  const useDiff = gameSettings?.useHandicapDiff;
+  let baselineHcp = 0;
+  if (useDiff) {
+      let min = 999;
+      players.forEach(p => { if(p.courseHandicap < min) min = p.courseHandicap; });
+      if(min !== 999) baselineHcp = min;
+  }
 
   return (
       <div className="flex flex-col h-full animate-in fade-in duration-300">
@@ -571,12 +579,18 @@ const ScoreView = ({
                   const isNR = score === 'NR';
                   const displayVal = isNR ? 'NR' : (score || holePar);
                   const isEntered = score !== undefined && score !== 0;
-                  const net = calculateNetScore(score || holePar, currentHole - 1, p.courseHandicap || 0, activeSi || DEFAULT_SI);
+
+                  // Apply Diff Logic Here for Display
+                  const playingHcp = p.courseHandicap - baselineHcp;
+                  const net = calculateNetScore(score || holePar, currentHole - 1, playingHcp, activeSi || DEFAULT_SI);
+                  
                   let statPreview = "";
                   if (activeGameMode === 'stableford') {
                       const pts = net === 'NR' ? 0 : Math.max(0, holePar - net + 2);
                       statPreview = `${pts} pts`;
-                  } else { statPreview = `Net ${net}`; }
+                  } else { 
+                      statPreview = `Net ${net}`; 
+                  }
                   
                   const diff = displayVal - holePar;
                   let colorClass = "text-slate-400";
@@ -595,7 +609,9 @@ const ScoreView = ({
                                      {p.playerName}
                                      {teamMode === 'pairs' && p.teeGroup && <span className="ml-2 text-[8px] bg-slate-700 px-1 rounded text-slate-400">Pair {p.teeGroup}</span>}
                                   </div>
-                                  <div className="text-[10px] text-slate-500 truncate">CH: {p.courseHandicap} • {statPreview}</div>
+                                  <div className="text-[10px] text-slate-500 truncate">
+                                      {useDiff ? `Diff CH: ${playingHcp}` : `CH: ${p.courseHandicap}`} • {statPreview}
+                                  </div>
                               </div>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
@@ -1100,14 +1116,23 @@ export default function App() {
 
         {(view === 'score' || view === 'leaderboard') && (
             <>
-                <header className="bg-slate-900/80 backdrop-blur border-b border-slate-800 h-14 flex items-center justify-between px-4 z-20 sticky top-0">
+                <header className="bg-slate-900/80 backdrop-blur border-b border-slate-800 h-14 flex items-center justify-between px-4 z-30 sticky top-0">
                     <div className="flex items-center space-x-2">
                         <MapPin size={16} className="text-emerald-500" />
                         <span className="font-bold text-sm truncate max-w-[120px]">{gameSettings?.courseName || 'Nils Pois'}</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <SyncStatus status={syncStatus} />
-                        <button onClick={() => setShowTeeSheet(true)} className="bg-slate-800 p-2 rounded-full text-emerald-500 hover:text-emerald-400 hover:bg-slate-700 transition"><Users size={16} /></button>
+                        <button 
+                            type="button"
+                            onClick={(e) => {
+                                console.log("Tee Sheet Clicked");
+                                setShowTeeSheet(true);
+                            }} 
+                            className="bg-slate-800 p-3 rounded-full text-emerald-500 hover:text-emerald-400 hover:bg-slate-700 transition active:scale-95"
+                        >
+                            <Users size={18} />
+                        </button>
                         <div className="flex items-center bg-slate-950 rounded-full px-3 py-1 border border-slate-800" onClick={() => {navigator.clipboard.writeText(gameId);}}><span className="font-mono font-bold text-emerald-400 tracking-widest mr-2">{gameId}</span><Share2 size={12} className="text-slate-500"/></div>
                     </div>
                 </header>
@@ -1124,6 +1149,7 @@ export default function App() {
                             syncStatus={syncStatus}
                             leaveGame={leaveGame}
                             teamMode={gameSettings?.teamMode || 'singles'}
+                            gameSettings={gameSettings}
                         />
                     ) : (
                         <LeaderboardView leaderboardData={leaderboardData} user={user} activeGameMode={activeGameMode} teamMode={gameSettings?.teamMode || 'singles'} gameSettings={gameSettings} />
