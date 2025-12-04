@@ -76,7 +76,7 @@ import {
 const APP_VERSION = "v2";
 
 // 1. CUSTOM LOGO: Now points to the file in your /public folder
-const CUSTOM_LOGO_URL = "/NilsPoisGolfMASTER.jpg"; 
+const CUSTOM_LOGO_URL = "/NilsPoisGolfCircle.jpg"; 
 
 // 2. CUSTOM BACKGROUND: Dark Masters Green Texture
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
