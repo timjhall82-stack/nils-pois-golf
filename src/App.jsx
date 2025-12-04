@@ -98,8 +98,7 @@ const db = getFirestore(app);
 const appId = 'nils-pois-live-v3';
 
 // --- Constants ---
-const COLLECTION_NAME = '
-_scores';
+const COLLECTION_NAME = 'golf_scores';
 const DEFAULT_PARS = [4, 4, 3, 4, 4, 5, 4, 3, 5, 4, 4, 3, 5, 4, 4, 3, 5, 4];
 const DEFAULT_SI = [1, 3, 5, 7, 9, 11, 13, 15, 17, 2, 4, 6, 8, 10, 12, 14, 16, 18]; 
 
