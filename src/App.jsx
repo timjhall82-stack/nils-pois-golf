@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -70,13 +70,13 @@ import {
   Ban,
   LogIn,
   Edit,
-  Image as ImageIcon
+  Camera // For Image Upload
 } from 'lucide-react';
 
 // --- CONFIGURATION & IMAGES ---
-const APP_VERSION = "v2.8";
+const APP_VERSION = "v3";
 
-// 1. CUSTOM LOGO: Points to /NilsPoisGolfInAppLogo.jpg
+// 1. CUSTOM LOGO: Points to /public/Logo.png
 const CUSTOM_LOGO_URL = "/Logo.png"; 
 
 // 2. CUSTOM BACKGROUND: Dark Masters Green Texture
@@ -95,7 +95,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = 'nils-pois-live-v2.8';
+const appId = 'nils-pois-live-v3';
 
 // --- Constants ---
 const COLLECTION_NAME = 'golf_scores';
@@ -213,9 +213,53 @@ const HistoryView = ({ userId, onClose, onLoadGame }) => {
 const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
     const [name, setName] = useState('');
     const [hcp, setHcp] = useState('');
-    const [imgUrl, setImgUrl] = useState(''); // New State
+    const [imgUrl, setImgUrl] = useState('');
     const [editingId, setEditingId] = useState(null);
     const [submitting, setSubmitting] = useState(false);
+    const fileInputRef = useRef(null);
+
+    // --- Handle Image Upload (Resize & Compress) ---
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Resize to 150px square max
+                const maxSize = 150;
+                let width = img.width;
+                let height = img.height;
+                
+                // Calculate aspect ratio
+                if (width > height) {
+                    if (width > maxSize) {
+                        height *= maxSize / width;
+                        width = maxSize;
+                    }
+                } else {
+                    if (height > maxSize) {
+                        width *= maxSize / height;
+                        height = maxSize;
+                    }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Compress to JPEG 70% quality
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                setImgUrl(dataUrl);
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -225,17 +269,13 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
             const playerData = { 
                 name: name, 
                 handicap: hcp || 0, 
-                avatarUrl: imgUrl, // Save URL
+                avatarUrl: imgUrl, 
                 createdAt: new Date().toISOString() 
             };
 
             if (editingId) {
                 const playerRef = doc(db, 'artifacts', appId, 'users', userId, 'saved_players', editingId);
-                await updateDoc(playerRef, { 
-                    name: name, 
-                    handicap: hcp || 0,
-                    avatarUrl: imgUrl 
-                });
+                await updateDoc(playerRef, { name: name, handicap: hcp || 0, avatarUrl: imgUrl });
                 setEditingId(null);
             } else {
                 const playersRef = collection(db, 'artifacts', appId, 'users', userId, 'saved_players');
@@ -248,9 +288,10 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
     const handleEdit = (player) => { 
         setName(player.name); 
         setHcp(player.handicap); 
-        setImgUrl(player.avatarUrl || ''); // Load URL
+        setImgUrl(player.avatarUrl || ''); 
         setEditingId(player.id); 
     };
+    
     const handleCancelEdit = () => { setName(''); setHcp(''); setImgUrl(''); setEditingId(null); };
 
     const handleDelete = async (id) => {
@@ -264,28 +305,49 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
                 <button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X size={20} /></button>
             </div>
             <div className="flex-1 overflow-y-auto space-y-6">
-                <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-3">
-                    <div className="flex justify-between items-center">
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
+                    <div className="flex justify-between items-center mb-3">
                         <h3 className="text-xs font-bold text-slate-500 uppercase">{editingId ? 'Edit Player' : 'Add New Player'}</h3>
                         {editingId && (<button onClick={handleCancelEdit} className="text-[10px] text-red-400 hover:underline">Cancel</button>)}
                     </div>
                     
-                    <div className="flex gap-2">
-                         <input className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-blue-500 outline-none" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-                         <input type="number" className="w-16 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-blue-500 outline-none" placeholder="HCP" value={hcp} onChange={(e) => setHcp(e.target.value)} />
-                    </div>
-                    
-                    <div className="flex gap-2 items-center">
-                        <div className="relative flex-1">
-                             <ImageIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                             <input 
-                                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 pl-9 text-sm text-white focus:border-blue-500 outline-none"
-                                placeholder="Image URL (optional)"
-                                value={imgUrl}
-                                onChange={(e) => setImgUrl(e.target.value)}
-                             />
+                    <div className="flex gap-3 items-start">
+                        {/* Image Upload Circle */}
+                        <div className="relative group">
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                className="hidden" 
+                                accept="image/*" 
+                                onChange={handleFileChange} 
+                            />
+                            <button 
+                                onClick={() => fileInputRef.current.click()}
+                                className="w-14 h-14 rounded-full bg-slate-800 border border-slate-600 flex items-center justify-center hover:border-blue-500 transition overflow-hidden"
+                            >
+                                {imgUrl ? (
+                                    <img src={imgUrl} alt="Preview" className="w-full h-full object-cover" />
+                                ) : (
+                                    <Camera size={20} className="text-slate-500 group-hover:text-blue-400" />
+                                )}
+                            </button>
+                            {imgUrl && (
+                                <button 
+                                    onClick={() => setImgUrl('')} 
+                                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600"
+                                >
+                                    <X size={10}/>
+                                </button>
+                            )}
                         </div>
-                        <button type="button" onClick={handleSubmit} disabled={!name.trim() || submitting} className={`text-white p-2 rounded-lg font-bold disabled:opacity-50 flex-shrink-0 w-10 flex items-center justify-center ${editingId ? 'bg-yellow-600' : 'bg-blue-600'}`}>{submitting ? <Activity className="animate-spin" size={16}/> : (editingId ? <Save size={20}/> : <Plus size={20} />)}</button>
+
+                        <div className="flex-1 space-y-2">
+                            <div className="flex gap-2">
+                                <input className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-blue-500 outline-none w-0" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
+                                <input type="number" className="w-16 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-blue-500 outline-none" placeholder="HCP" value={hcp} onChange={(e) => setHcp(e.target.value)} />
+                            </div>
+                            <button type="button" onClick={handleSubmit} disabled={!name.trim() || submitting} className={`w-full text-white p-2 rounded-lg font-bold disabled:opacity-50 flex items-center justify-center ${editingId ? 'bg-yellow-600' : 'bg-blue-600'}`}>{submitting ? <Activity className="animate-spin" size={16}/> : (editingId ? 'Update Player' : 'Save Player')}</button>
+                        </div>
                     </div>
                 </div>
 
@@ -295,18 +357,18 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
                             <div key={p.id} className={`bg-slate-900 border p-3 rounded-xl flex justify-between items-center ${editingId === p.id ? 'border-yellow-600/50 bg-yellow-900/10' : 'border-slate-800'}`}>
                                 <div className="flex items-center gap-3 overflow-hidden flex-1">
                                     {p.avatarUrl ? (
-                                        <img src={p.avatarUrl} alt={p.name} className="w-10 h-10 rounded-full object-cover bg-slate-800 border border-slate-700" onError={(e) => e.target.style.display='none'} />
+                                        <img src={p.avatarUrl} alt={p.name} className="w-10 h-10 rounded-full object-cover bg-slate-800 border border-slate-700 flex-shrink-0" />
                                     ) : (
-                                        <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-500"><User size={20}/></div>
+                                        <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex-shrink-0 flex items-center justify-center text-slate-600"><User size={18}/></div>
                                     )}
-                                    <div className="truncate">
+                                    <div className="truncate pr-2">
                                         <div className="font-bold text-white truncate">{p.name}</div>
                                         <div className="text-xs text-slate-500">HCP: {p.handicap}</div>
                                     </div>
                                 </div>
-                                <div className="flex gap-1">
-                                    <button onClick={() => handleEdit(p)} className="p-2 text-slate-400 hover:text-yellow-500 transition flex-shrink-0"><Edit size={16} /></button>
-                                    <button onClick={() => handleDelete(p.id)} className="p-2 text-slate-600 hover:text-red-500 transition flex-shrink-0"><Trash2 size={16} /></button>
+                                <div className="flex gap-1 flex-shrink-0">
+                                    <button onClick={() => handleEdit(p)} className="p-2 text-slate-400 hover:text-yellow-500 transition"><Edit size={16} /></button>
+                                    <button onClick={() => handleDelete(p.id)} className="p-2 text-slate-600 hover:text-red-500 transition"><Trash2 size={16} /></button>
                                 </div>
                             </div>
                         ))
@@ -320,17 +382,15 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
 const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput, handleJoinGame, courseName, setCourseName, startSetup, error, setShowPortal, setShowHistory, user, handleLogin, handleLogout }) => (
   <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-slate-950 text-white space-y-6">
     <div className="text-center mb-4">
-      {/* --- LOGO --- */}
       <div className="mb-2 relative z-10">
-          {/* CLIP FIX: 'rounded-full' cuts off corners, 'object-cover' ensures it fills the circle */}
           <img 
             src={CUSTOM_LOGO_URL} 
             alt="Logo" 
-            className="w-48 h-48 mx-auto object-cover rounded-full drop-shadow-2xl filter brightness-110 border-4 border-white/10 bg-slate-900" 
+            className="w-48 h-48 mx-auto object-contain drop-shadow-2xl filter brightness-110" 
           />
       </div>
       <h1 className="text-4xl font-black tracking-tighter text-white drop-shadow-lg">Nils Pois</h1>
-      <p className="text-emerald-400 text-xs font-bold tracking-widest uppercase">Golf - V2.8</p>
+      <p className="text-emerald-400 text-xs font-bold tracking-widest uppercase">Golf - v3</p>
     </div>
     
     <div className="w-full max-w-sm bg-slate-900/60 backdrop-blur-md rounded-xl border border-white/10 p-3 flex justify-between items-center shadow-2xl">
@@ -473,7 +533,7 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
   const [adhocHcp, setAdhocHcp] = useState('');
   const [adhocGuests, setAdhocGuests] = useState([]);
   const [isCreating, setIsCreating] = useState(false);
-  const [hostAvatar, setHostAvatar] = useState(''); // Track Host Avatar
+  const [hostAvatar, setHostAvatar] = useState('');
 
   const handlePresetChange = (e) => {
     const key = e.target.value;
@@ -505,9 +565,9 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                     )}
                 </div>
                 <div className="flex gap-3">
-                    {hostAvatar && <img src={hostAvatar} className="w-10 h-10 rounded-full object-cover border border-slate-500" alt="Host" />}
-                    <input className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500 w-0" placeholder="Your Name" value={playerName} onChange={(e) => setPlayerName(e.target.value)} />
-                    <input type="number" className="w-20 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="HCP" value={handicapIndex} onChange={(e) => setHandicapIndex(e.target.value)} />
+                     {hostAvatar && <img src={hostAvatar} className="w-10 h-10 rounded-full object-cover border border-slate-500 flex-shrink-0" alt="Host" />}
+                     <input className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500 w-0" placeholder="Your Name" value={playerName} onChange={(e) => setPlayerName(e.target.value)} />
+                     <input type="number" className="w-20 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="HCP" value={handicapIndex} onChange={(e) => setHandicapIndex(e.target.value)} />
                 </div>
             </div>
             <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 space-y-4">
@@ -537,7 +597,7 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                     <div className="bg-slate-900 rounded-lg p-2 border border-slate-800">
                         <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Who's Playing?</div>
                         <div className="flex flex-wrap gap-2">
-                            {playerName && <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded border border-emerald-500/30 flex items-center">{playerName} <UserCheck size={10} className="ml-1"/></span>}
+                            {playerName && <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded border border-emerald-500/30 flex items-center gap-1">{hostAvatar && <img src={hostAvatar} className="w-4 h-4 rounded-full"/>} {playerName} <UserCheck size={10} className="ml-1"/></span>}
                             {savedPlayers.filter(p => selectedFriends.has(p.id)).map(p => <span key={p.id} className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded border border-slate-700 flex items-center gap-1">{p.avatarUrl && <img src={p.avatarUrl} className="w-4 h-4 rounded-full"/>}{p.name}</span>)}
                             {adhocGuests.map(g => <span key={g.id} className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded border border-blue-500/30 flex items-center group">{g.name} <button type="button" onClick={() => removeAdhoc(g.id)} className="ml-1 hover:text-white"><X size={10}/></button></span>)}
                         </div>
@@ -601,7 +661,7 @@ const ScoreView = ({
 
                   return (
                       <div key={p.id} className="bg-slate-800 p-2 rounded-xl flex items-center justify-between border border-slate-700 w-full max-w-full">
-                          <div className="flex items-center flex-1 min-w-0 pr-2">
+                          <div className="flex-1 min-w-0 pr-2 flex items-center">
                               {p.avatarUrl && <img src={p.avatarUrl} className="w-10 h-10 rounded-full object-cover border border-slate-600 mr-3" alt={p.playerName}/>}
                               <div>
                                   <div className="font-bold text-sm text-slate-200 truncate">{p.playerName}</div>
@@ -835,7 +895,6 @@ export default function App() {
     localStorage.setItem('golf_player_hcp', handicapIndex);
     const ch = calculateCourseHandicap(handicapIndex, cSlope, cRating, cTotalPar);
     const playerDocId = `${code}_${user.uid}`;
-    // Save Host Avatar if provided
     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, playerDocId), { 
         gameId: code, 
         userId: user.uid, 
