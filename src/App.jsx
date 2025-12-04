@@ -74,10 +74,10 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & IMAGES ---
-const APP_VERSION = "v2.6";
+const APP_VERSION = "v2.7";
 
 // 1. CUSTOM LOGO: Points to /NilsPoisGolfInAppLogo.jpg
-const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.jpg"; 
+const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
 
 // 2. CUSTOM BACKGROUND: Dark Masters Green Texture
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
@@ -95,7 +95,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = 'nils-pois-live-v2.6';
+const appId = 'nils-pois-live-v2.7';
 
 // --- Constants ---
 const COLLECTION_NAME = 'golf_scores';
