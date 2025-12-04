@@ -77,7 +77,7 @@ import {
 
 // --- CONFIGURATION & CONSTANTS ---
 const APP_VERSION = "v3.0";
-const CUSTOM_LOGO_URL = "/Logo.png"; 
+const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
 
 // ⚠️ HARDCODED ID - Ensures consistent data path across the entire app
@@ -124,7 +124,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = 'nils-pois-live-v2.4';
+const appId = 'nils-pois-live-v5';
 
 // --- Helper Functions ---
 const calculateNetScore = (gross, holeIdx, ch, siList) => {
@@ -713,7 +713,12 @@ export default function App() {
   useEffect(() => {
       if (!user) return;
       const q = query(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'saved_players'));
-      const unsubscribe = onSnapshot(q, (snapshot) => { const sp = []; snapshot.forEach(doc => sp.push({id: doc.id, ...doc.data()})); setSavedPlayers(sp); }, (err) => { console.error("Error fetching players:", err); });
+      const unsubscribe = onSnapshot(q, (snapshot) => { 
+          const sp = []; 
+          snapshot.forEach(doc => sp.push({id: doc.id, ...doc.data()})); 
+          sp.sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically
+          setSavedPlayers(sp); 
+      }, (err) => { console.error("Error fetching players:", err); });
       return () => unsubscribe();
   }, [user]);
 
