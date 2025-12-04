@@ -71,11 +71,12 @@ import {
   LogIn,
   Edit,
   Camera,
-  Users2 
+  Users2,
+  Percent // For Handicap Diff Icon
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-const APP_VERSION = "v2.9";
+const APP_VERSION = "v3.0";
 const CUSTOM_LOGO_URL = "/Logo.png"; 
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
 
@@ -430,7 +431,7 @@ const CourseBrowser = ({ onClose, onSelectCourse }) => {
     );
 };
 
-const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRating, pars, setPars, gameMode, setGameMode, setSi, playerName, setPlayerName, handicapIndex, setHandicapIndex, performGoogleSearch, createGame, onCancel, savedPlayers, error, teamMode, setTeamMode }) => {
+const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRating, pars, setPars, gameMode, setGameMode, setSi, playerName, setPlayerName, handicapIndex, setHandicapIndex, performGoogleSearch, createGame, onCancel, savedPlayers, error, teamMode, setTeamMode, useHandicapDiff, setUseHandicapDiff }) => {
   const [showBrowser, setShowBrowser] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState(new Set());
   const [adhocName, setAdhocName] = useState('');
@@ -521,6 +522,17 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                    </div>
                 </div>
                 
+                {/* Handicap Difference Toggle */}
+                <div>
+                   <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Handicap Calc</label>
+                   <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700">
+                        <button onClick={() => setUseHandicapDiff(false)} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${!useHandicapDiff ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>Full</button>
+                        <button onClick={() => setUseHandicapDiff(true)} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${useHandicapDiff ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>
+                            <span className="flex items-center justify-center"><Percent size={12} className="mr-1"/> Difference</span>
+                        </button>
+                   </div>
+                </div>
+                
                 <div><label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Game Mode</label><div className="grid grid-cols-2 gap-2"><ModeButton mode="stroke" icon={Target} label="Stroke Play" /><ModeButton mode="stableford" icon={Activity} label="Stableford" /><ModeButton mode="match" icon={Swords} label="Match Play" /><ModeButton mode="skins" icon={Gem} label="Skins" /></div></div>
             </div>
             <button type="button" onClick={handleStartGame} disabled={isCreating} className="w-full bg-emerald-600 py-4 rounded-xl font-bold mt-2 flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-lg shadow-emerald-900/50 disabled:opacity-50">{isCreating ? <Activity className="animate-spin" /> : <><Save size={18}/> Start Game</>}</button>
@@ -566,8 +578,6 @@ const ScoreView = ({
                       statPreview = `${pts} pts`;
                   } else { statPreview = `Net ${net}`; }
                   
-                  // If in pairs mode, maybe show team partner? No, individual entry is cleaner.
-
                   const diff = displayVal - holePar;
                   let colorClass = "text-slate-400";
                   if (isEntered && !isNR) {
@@ -606,7 +616,7 @@ const ScoreView = ({
   );
 };
 
-const LeaderboardView = ({ leaderboardData, user, activeGameMode, teamMode }) => (
+const LeaderboardView = ({ leaderboardData, user, activeGameMode, teamMode, gameSettings }) => (
   <div className="flex flex-col h-full animate-in slide-in-from-right duration-300">
       <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-xl flex-1 flex flex-col">
           <div className="bg-slate-950 p-3 border-b border-slate-800 flex text-[10px] font-bold text-slate-500 uppercase tracking-wider">
@@ -637,114 +647,11 @@ const LeaderboardView = ({ leaderboardData, user, activeGameMode, teamMode }) =>
               ))}
           </div>
           {teamMode === 'pairs' && <div className="p-2 text-[10px] text-center text-emerald-500 bg-slate-950 font-bold">Better Ball Format Active</div>}
-          {activeGameMode === 'match' && <div className="p-2 text-[10px] text-center text-slate-500 bg-slate-950">Match status vs {teamMode === 'pairs' ? 'Host Team' : 'YOU'}</div>}
-          {activeGameMode === 'skins' && <div className="p-2 text-[10px] text-center text-slate-500 bg-slate-950">Skins with Carry-overs</div>}
+          {activeGameMode === 'match' && <div className="p-2 text-[10px] text-center text-slate-500 bg-slate-950">Match status vs {teamMode === 'pairs' ? 'Host Team' : 'YOU'} {gameSettings?.useHandicapDiff ? '(Diff)' : '(Full)'}</div>}
+          {activeGameMode === 'skins' && <div className="p-2 text-[10px] text-center text-slate-500 bg-slate-950">Skins {gameSettings?.useHandicapDiff ? 'off Lowest' : 'Full Hcp'}</div>}
       </div>
   </div>
 );
-
-const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestName, setNewGuestName, newGuestHcp, setNewGuestHcp, savedPlayers, updatePlayerGroup }) => {
-    const [targetGroupSize, setTargetGroupSize] = useState(4);
-    const [guestAvatar, setGuestAvatar] = useState('');
-
-    const groupedPlayers = useMemo(() => {
-        const groups = {}; const unassigned = [];
-        players.forEach(p => { if (p.teeGroup) { if (!groups[p.teeGroup]) groups[p.teeGroup] = []; groups[p.teeGroup].push(p); } else { unassigned.push(p); } });
-        return { groups, unassigned };
-    }, [players]);
-
-    return (
-        <div className="fixed inset-0 bg-black/90 z-50 flex flex-col p-4 animate-in fade-in duration-200">
-             <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold text-white flex items-center"><Users className="mr-2 text-emerald-500" /> Tee Sheet</h2><button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X size={20} /></button></div>
-            <div className="flex-1 overflow-y-auto space-y-6">
-                <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
-                    <div className="flex justify-between items-center mb-3">
-                        <h3 className="text-xs font-bold text-slate-500 uppercase flex items-center"><UserPlus size={12} className="mr-1"/> Add Guest Player</h3>
-                        {savedPlayers && savedPlayers.length > 0 && (<select className="bg-slate-800 text-xs text-blue-400 border border-slate-700 rounded px-2 py-1 outline-none" onChange={(e) => { const p = savedPlayers.find(sp => sp.id === e.target.value); if(p) { setNewGuestName(p.name); setNewGuestHcp(p.handicap); setGuestAvatar(p.avatarUrl || ''); } }} value=""><option value="" disabled>Pick Saved...</option>{savedPlayers.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}</select>)}
-                    </div>
-                    <div className="flex gap-2 mb-2">
-                        <input className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-emerald-500 outline-none" placeholder="Name" value={newGuestName} onChange={(e) => setNewGuestName(e.target.value)} />
-                        <input type="number" className="w-16 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-emerald-500 outline-none" placeholder="HCP" value={newGuestHcp} onChange={(e) => setNewGuestHcp(e.target.value)} />
-                    </div>
-                    <div className="flex gap-2">
-                        <input className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-emerald-500 outline-none" placeholder="Image URL (Optional)" value={guestAvatar} onChange={(e) => setGuestAvatar(e.target.value)} />
-                        <button onClick={(e) => { e.preventDefault(); addGuest(guestAvatar); setGuestAvatar(''); }} className="bg-emerald-600 text-white p-2 rounded-lg font-bold disabled:opacity-50" disabled={!newGuestName.trim()}><Plus size={20} /></button>
-                    </div>
-                </div>
-
-                <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
-                    <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center"><Shuffle size={12} className="mr-1"/> Shuffle Groups</h3>
-                    
-                    <div className="flex items-center justify-between mb-3">
-                         <span className="text-xs text-slate-400">Size per group:</span>
-                         <div className="flex bg-slate-950 rounded-lg p-1 border border-slate-700">
-                            {[2,3,4].map(size => (
-                                <button 
-                                    key={size} 
-                                    onClick={() => setTargetGroupSize(size)}
-                                    className={`px-4 py-1.5 rounded text-xs font-bold transition-all ${targetGroupSize === size ? 'bg-emerald-600 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}
-                                >
-                                    {size}
-                                </button>
-                            ))}
-                         </div>
-                    </div>
-
-                    <button 
-                        onClick={() => randomize(targetGroupSize)} 
-                        className="w-full py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm text-emerald-500 font-bold flex justify-center items-center transition-all active:scale-95"
-                    >
-                        <Shuffle size={16} className="mr-2"/> 
-                        Randomise All Players
-                    </button>
-                </div>
-
-                <div className="space-y-4">
-                    {groupedPlayers.unassigned.length > 0 && (
-                        <div className="bg-slate-900 rounded-xl border border-slate-800 p-3"><div className="text-xs font-bold text-slate-500 uppercase mb-2">Unassigned / Lobby</div>{groupedPlayers.unassigned.map(p => (
-                            <div key={p.id} className="py-2 border-b border-slate-800/50 last:border-0 text-sm flex justify-between items-center">
-                                <div className="flex items-center gap-2">{p.avatarUrl && <img src={p.avatarUrl} className="w-6 h-6 rounded-full object-cover" />}<span>{p.playerName}</span></div>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-slate-500 font-mono text-xs mr-2">CH: {p.courseHandicap}</span>
-                                    <select 
-                                        className="bg-slate-800 border border-slate-700 text-xs rounded p-1 outline-none text-slate-300"
-                                        value={p.teeGroup || ''} 
-                                        onChange={(e) => updatePlayerGroup(p.id, e.target.value ? parseInt(e.target.value) : null)}
-                                    >
-                                        <option value="">None</option>
-                                        {[1,2,3,4,5,6,7,8,9,10].map(g => (
-                                            <option key={g} value={g}>Grp {g}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                        ))}</div>
-                    )}
-                    {Object.keys(groupedPlayers.groups).sort().map(gNum => (
-                        <div key={gNum} className="bg-slate-900 rounded-xl border border-slate-800 p-3 relative overflow-hidden"><div className="absolute top-0 left-0 bottom-0 w-1 bg-emerald-500"></div><div className="text-xs font-bold text-emerald-400 uppercase mb-2 pl-2">Group {gNum}</div>{groupedPlayers.groups[gNum].map(p => (
-                            <div key={p.id} className="py-2 border-b border-slate-800/50 last:border-0 text-sm flex justify-between pl-2 items-center">
-                                <div className="flex items-center gap-2">{p.avatarUrl && <img src={p.avatarUrl} className="w-6 h-6 rounded-full object-cover" />}<span>{p.playerName}</span></div>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-slate-500 font-mono text-xs mr-2">CH: {p.courseHandicap}</span>
-                                    <select 
-                                        className="bg-slate-800 border border-slate-700 text-xs rounded p-1 outline-none text-slate-300"
-                                        value={p.teeGroup || ''} 
-                                        onChange={(e) => updatePlayerGroup(p.id, e.target.value ? parseInt(e.target.value) : null)}
-                                    >
-                                        <option value="">None</option>
-                                        {[1,2,3,4,5,6,7,8,9,10].map(g => (
-                                            <option key={g} value={g}>Grp {g}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                        ))}</div>
-                    ))}
-                </div>
-            </div>
-        </div>
-    );
-};
 
 // --- Main App Component ---
 
@@ -779,6 +686,7 @@ export default function App() {
   const [si, setSi] = useState(DEFAULT_SI);
   const [gameMode, setGameMode] = useState('stroke'); 
   const [teamMode, setTeamMode] = useState('singles'); // 'singles' or 'pairs' 
+  const [useHandicapDiff, setUseHandicapDiff] = useState(false);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -834,7 +742,7 @@ export default function App() {
       const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
       const settingsId = `SETTINGS_${newCode}`;
       const totalPar = pars.reduce((a, b) => a + b, 0);
-      await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, settingsId), { courseName, slope, rating, pars, si, totalPar, gameMode, teamMode, createdAt: new Date().toISOString() });
+      await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, settingsId), { courseName, slope, rating, pars, si, totalPar, gameMode, teamMode, useHandicapDiff, createdAt: new Date().toISOString() });
       await joinGameLogic(newCode, courseName, slope, rating, totalPar, hostAvatarUrl);
       if (friendsToAdd.length > 0) {
           const batch = writeBatch(db);
@@ -988,12 +896,58 @@ export default function App() {
 
     // 2. If Singles, return formatted individuals
     if (activeTeamMode === 'singles') {
+        const skinsWon = {};
+        if (activeGameMode === 'skins') {
+            let pot = 1;
+            playerDetails.forEach(p => skinsWon[p.id] = 0);
+            for (let i = 1; i <= 18; i++) {
+                const holeScores = playerDetails.map(p => {
+                     const s = p.scores[i];
+                     if (!s || s === 'NR') return { id: p.id, net: 'NR' }; 
+                     // Apply Diff if Selected
+                     const baseline = (gameSettings?.useHandicapDiff) ? lowestHcp : 0;
+                     const strokesRec = getShotsOnHole(p.ch - baseline, activeSi[i-1]);
+                     return { id: p.id, net: s - strokesRec };
+                }).filter(s => s.net !== 'NR');
+
+                if (holeScores.length === 0) continue; 
+                
+                const minVal = Math.min(...holeScores.map(s => s.net));
+                const winners = holeScores.filter(s => s.net === minVal);
+                if (winners.length === 1) { skinsWon[winners[0].id] += pot; pot = 1; } else { pot += 1; }
+            }
+        }
+
+        const myPlayer = playerDetails.find(p => p.userId === user?.uid);
+        const matchStatus = {};
+        if (activeGameMode === 'match' && myPlayer) {
+            playerDetails.forEach(opponent => {
+                if (opponent.userId === user.uid) { matchStatus[opponent.id] = "-"; return; }
+                let myWins = 0; let opWins = 0;
+                
+                const useDiff = gameSettings?.useHandicapDiff;
+                const lowerCH = useDiff ? Math.min(myPlayer.ch, opponent.ch) : 0;
+                const myPlayingHcp = myPlayer.ch - lowerCH;
+                const opPlayingHcp = opponent.ch - lowerCH;
+
+                for (let i = 1; i <= 18; i++) {
+                    const myGross = myPlayer.scores[i];
+                    const opGross = opponent.scores[i];
+                    const myIsNR = myGross === 'NR' || !myGross;
+                    const opIsNR = opGross === 'NR' || !opGross;
+
+                    if (!myIsNR && !opIsNR) {
+                        const myNet = myGross - getShotsOnHole(myPlayingHcp, activeSi[i-1]);
+                        const opNet = opGross - getShotsOnHole(opPlayingHcp, activeSi[i-1]);
+                        if (myNet < opNet) myWins++; else if (opNet < myNet) opWins++;
+                    } else if (myIsNR && !opIsNR) { opWins++; } else if (!myIsNR && opIsNR) { myWins++; }
+                }
+                const diff = myWins - opWins;
+                if (diff === 0) matchStatus[opponent.id] = "AS"; else if (diff > 0) matchStatus[opponent.id] = `${diff} DN`; else matchStatus[opponent.id] = `${Math.abs(diff)} UP`;
+            });
+        }
+
         return playerDetails.map(p => {
-             let skinsWon = 0;
-             // ... existing skins logic could go here or be refactored ...
-             // For simplicity in this huge block, simplified singles return:
-             
-             // Recalc basic totals for display
              let parForHolesPlayed = 0; 
              Object.keys(p.scores).forEach(holeKey => { parForHolesPlayed += activePars[parseInt(holeKey)-1]; });
              const grossToPar = (p.gross === 0 && p.holesPlayed > 0) ? 999 : (p.gross - parForHolesPlayed);
@@ -1004,8 +958,8 @@ export default function App() {
                  totalPoints: p.totalPoints,
                  grossToPar, netTotal,
                  displayScore: p.holesPlayed === 0 ? 'E' : (grossToPar === 999 ? 'NR' : (grossToPar === 0 ? 'E' : (grossToPar > 0 ? `+${grossToPar}` : grossToPar))),
-                 matchStatus: '-', // Placeholder for now
-                 skinsWon: 0,
+                 matchStatus: matchStatus[p.id] || '-', 
+                 skinsWon: skinsWon[p.id] || 0,
                  isUser: p.userId === user?.uid
              };
         }).sort((a,b) => activeGameMode === 'stableford' ? b.totalPoints - a.totalPoints : a.grossToPar - b.grossToPar);
@@ -1087,7 +1041,7 @@ export default function App() {
         return teamResults.sort((a,b) => activeGameMode === 'stableford' ? b.totalPoints - a.totalPoints : a.grossToPar - b.grossToPar);
     }
 
-  }, [players, activePars, activeSi, activeGameMode, activeTeamMode, user]);
+  }, [players, activePars, activeSi, activeGameMode, activeTeamMode, user, gameSettings]);
 
   const myData = players.find(p => p.userId === user?.uid) || {};
   const myScores = myData.scores || {};
@@ -1135,6 +1089,7 @@ export default function App() {
                 savedPlayers={savedPlayers} 
                 error={error} 
                 teamMode={teamMode} setTeamMode={setTeamMode}
+                useHandicapDiff={useHandicapDiff} setUseHandicapDiff={setUseHandicapDiff}
             />
         )}
 
@@ -1166,7 +1121,7 @@ export default function App() {
                             teamMode={gameSettings?.teamMode || 'singles'}
                         />
                     ) : (
-                        <LeaderboardView leaderboardData={leaderboardData} user={user} activeGameMode={activeGameMode} teamMode={gameSettings?.teamMode || 'singles'} />
+                        <LeaderboardView leaderboardData={leaderboardData} user={user} activeGameMode={activeGameMode} teamMode={gameSettings?.teamMode || 'singles'} gameSettings={gameSettings} />
                     )}
                     
                     <div className="mt-2 flex justify-between items-center px-1">
