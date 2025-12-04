@@ -73,9 +73,9 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & IMAGES ---
-const APP_VERSION = "v2.3";
+const APP_VERSION = "v2.4";
 
-// 1. CUSTOM LOGO: Points to /public/NilsPoisGolfMASTER.jpg
+// 1. CUSTOM LOGO: Points to /public/NilsPoisGolfCircle.jpg
 const CUSTOM_LOGO_URL = "/NilsPoisGolfCircle.png"; 
 
 // 2. CUSTOM BACKGROUND: Dark Masters Green Texture
@@ -94,7 +94,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = 'nils-pois-live-v2.3';
+const appId = 'nils-pois-live-v2.4';
 
 // --- Constants ---
 const COLLECTION_NAME = 'golf_scores';
@@ -280,11 +280,11 @@ const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput,
     <div className="text-center mb-4">
       {/* --- LOGO --- */}
       <div className="mb-2 relative z-10">
-          {/* Added 'rounded-full' to clip white corners and 'border' for a clean badge look */}
+          {/* Forced circle clip with 'rounded-full' to trim JPG white corners */}
           <img 
             src={CUSTOM_LOGO_URL} 
             alt="Logo" 
-            className="w-40 h-40 mx-auto object-cover rounded-full drop-shadow-2xl filter brightness-110 border-4 border-white/10" 
+            className="w-48 h-48 mx-auto object-cover rounded-full drop-shadow-2xl filter brightness-110" 
           />
       </div>
       <h1 className="text-4xl font-black tracking-tighter text-white drop-shadow-lg">Nils Pois</h1>
@@ -321,6 +321,7 @@ const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput,
   </div>
 );
 
+// ... CourseBrowser, SetupView, ScoreView, LeaderboardView, TeeSheetModal, App Main Component (unchanged) ...
 const CourseBrowser = ({ onClose, onSelectCourse }) => {
     const [step, setStep] = useState('clubs'); 
     const [loading, setLoading] = useState(true);
