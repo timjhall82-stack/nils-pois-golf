@@ -95,7 +95,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = 'nils-pois-live-v4';
+const appId = 'nils-pois-live-v3';
 
 // --- Constants ---
 const COLLECTION_NAME = 'golf_scores';
