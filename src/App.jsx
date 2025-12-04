@@ -80,7 +80,7 @@ const APP_VERSION = "v5";
 const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
 
-// ⚠️ HARDCODED ID - Ensures consistent data path across the entire app
+// ⚠️ DATA NAMESPACE: Do not change this or you lose access to saved data
 const APP_ID = "nils-pois-golf-v5"; 
 const COLLECTION_NAME = 'golf_scores';
 
