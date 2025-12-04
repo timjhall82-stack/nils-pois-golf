@@ -75,8 +75,9 @@ import {
 // --- CONFIGURATION & IMAGES ---
 const APP_VERSION = "v2.4";
 
-// 1. CUSTOM LOGO: Points to /public/NilsPoisGolfCircle.jpg
-const CUSTOM_LOGO_URL = "/NilsPoisGolfCircle.png"; 
+// 1. CUSTOM LOGO: Points to /public/NilsPoisLogo.png
+// MAKE SURE TO SAVE YOUR PNG FILE WITH THIS EXACT NAME
+const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
 
 // 2. CUSTOM BACKGROUND: Dark Masters Green Texture
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
@@ -280,15 +281,15 @@ const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput,
     <div className="text-center mb-4">
       {/* --- LOGO --- */}
       <div className="mb-2 relative z-10">
-          {/* Forced circle clip with 'rounded-full' to trim JPG white corners */}
+          {/* 'object-contain' prevents cropping, removed rounded-full to allow transparency */}
           <img 
             src={CUSTOM_LOGO_URL} 
             alt="Logo" 
-            className="w-48 h-48 mx-auto object-cover rounded-full drop-shadow-2xl filter brightness-110" 
+            className="w-48 h-48 mx-auto object-contain drop-shadow-2xl filter brightness-110" 
           />
       </div>
       <h1 className="text-4xl font-black tracking-tighter text-white drop-shadow-lg">Nils Pois</h1>
-      <p className="text-emerald-400 text-xs font-bold tracking-widest uppercase">Golf Society</p>
+      <p className="text-emerald-400 text-xs font-bold tracking-widest uppercase">Golf</p>
     </div>
     
     <div className="w-full max-w-sm bg-slate-900/60 backdrop-blur-md rounded-xl border border-white/10 p-3 flex justify-between items-center shadow-2xl">
@@ -321,7 +322,6 @@ const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput,
   </div>
 );
 
-// ... CourseBrowser, SetupView, ScoreView, LeaderboardView, TeeSheetModal, App Main Component (unchanged) ...
 const CourseBrowser = ({ onClose, onSelectCourse }) => {
     const [step, setStep] = useState('clubs'); 
     const [loading, setLoading] = useState(true);
