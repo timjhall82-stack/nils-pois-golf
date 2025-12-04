@@ -9,8 +9,8 @@ import {
   signInWithPopup,
   linkWithPopup,
   signOut,
-  setPersistence, // Added for persistence
-  browserLocalPersistence // Added for persistence
+  setPersistence,
+  browserLocalPersistence
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -72,8 +72,14 @@ import {
   Edit 
 } from 'lucide-react';
 
-// --- CONFIGURATION ---
-const APP_VERSION = "v1.0.9"; // Bumped version
+// --- CONFIGURATION & IMAGES ---
+const APP_VERSION = "v2";
+
+// 1. CUSTOM LOGO: Now points to the file in your /public folder
+const CUSTOM_LOGO_URL = "/NilsPoisGolfMASTER.jpg"; 
+
+// 2. CUSTOM BACKGROUND: Dark Masters Green Texture
+const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
 
 // --- Firebase Initialization ---
 const firebaseConfig = {
@@ -88,7 +94,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = 'nils-pois-live-v1';
+const appId = 'nils-pois-live-v2';
 
 // --- Constants ---
 const COLLECTION_NAME = 'golf_scores';
@@ -271,19 +277,16 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
 
 const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput, handleJoinGame, courseName, setCourseName, startSetup, error, setShowPortal, setShowHistory, user, handleLogin, handleLogout }) => (
   <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-slate-950 text-white space-y-6">
-    <div className="text-center mb-4"><div className="bg-emerald-600 p-3 rounded-2xl inline-block mb-3 shadow-lg shadow-emerald-500/20"><Flag size={32} className="text-white" fill="currentColor" /></div><h1 className="text-3xl font-bold">Nils Pois</h1></div>
-    <div className="w-full max-w-sm bg-slate-900/50 rounded-xl border border-slate-800 p-3 flex justify-between items-center">
-        <div className="flex items-center">
-            <div className="bg-slate-800 p-2 rounded-full text-slate-400 mr-3"><User size={16} /></div>
-            <div>
-                <div className="text-xs font-bold text-slate-300">
-                    {user?.isAnonymous ? 'Guest User' : (user?.displayName || user?.email || 'Golfer')}
-                </div>
-                <div className="text-[10px] text-slate-500">
-                    {user?.isAnonymous ? 'Data not saved' : (user?.email || 'Account Synced')}
-                </div>
-            </div>
-        </div>
+    <div className="text-center mb-4">
+      {/* --- LOGO --- */}
+      <div className="bg-white/10 p-4 rounded-full inline-block mb-3 shadow-lg shadow-emerald-500/20 backdrop-blur-sm border border-white/10">
+          <img src={CUSTOM_LOGO_URL} alt="Logo" className="w-16 h-16 object-contain drop-shadow-md" />
+      </div>
+      <h1 className="text-3xl font-bold tracking-tight">Nils Pois</h1>
+    </div>
+    
+    <div className="w-full max-w-sm bg-slate-900/50 rounded-xl border border-slate-800 p-3 flex justify-between items-center backdrop-blur-sm">
+        <div className="flex items-center"><div className="bg-slate-800 p-2 rounded-full text-slate-400 mr-3"><User size={16} /></div><div><div className="text-xs font-bold text-slate-300">{user?.isAnonymous ? 'Guest User' : (user?.displayName || user?.email || 'Golfer')}</div><div className="text-[10px] text-slate-500">{user?.isAnonymous ? 'Data not saved' : (user?.email || 'Account Synced')}</div></div></div>
         {user?.isAnonymous ? <button onClick={handleLogin} className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-3 rounded-lg flex items-center transition-colors"><LogIn size={12} className="mr-1" /> Login</button> : <button onClick={handleLogout} className="text-slate-500 hover:text-red-400 text-xs font-bold py-2 px-2 transition-colors">Sign Out</button>}
     </div>
     {error && <div className="w-full max-w-sm p-3 bg-red-500/20 border border-red-500/50 text-red-200 rounded-lg text-sm text-center animate-in fade-in slide-in-from-top-2 flex items-center justify-center"><AlertCircle size={16} className="mr-2"/>{error}</div>}
@@ -304,7 +307,7 @@ const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput,
         </div>
         <button type="button" onClick={handleJoinGame} className="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl font-bold shadow-lg shadow-blue-900/50 transition-all active:scale-95">Join Game</button>
     </div>
-    <div className="mt-4 text-slate-700 text-[10px] font-mono opacity-50">Version {APP_VERSION}</div>
+    <div className="mt-4 text-slate-400 text-[10px] font-mono opacity-60 bg-black/20 px-2 py-1 rounded">Version {APP_VERSION}</div>
   </div>
 );
 
@@ -662,10 +665,6 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
         setUser(u);
-        // Auto-fill name from profile if not set
-        if (!u.isAnonymous && u.displayName) {
-             setPlayerName(prev => prev || u.displayName);
-        }
         const savedGame = localStorage.getItem('golf_game_id');
         const savedName = localStorage.getItem('golf_player_name');
         const savedHcp = localStorage.getItem('golf_player_hcp');
@@ -882,7 +881,7 @@ export default function App() {
     <div 
       className="min-h-screen bg-slate-950 text-white font-sans overflow-hidden flex flex-col"
       style={{
-        backgroundImage: 'linear-gradient(to bottom, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.95)), url("https://images.unsplash.com/photo-1535131749006-b7f58c99034b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80")',
+        backgroundImage: `linear-gradient(to bottom, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.95)), url("${BACKGROUND_IMAGE}")`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundAttachment: 'fixed'
@@ -964,6 +963,7 @@ export default function App() {
             </>
         )}
 
+        {/* Player Portal Modal */}
         {showPortal && user && (
             <PlayerPortal onClose={() => setShowPortal(false)} userId={user.uid} savedPlayers={savedPlayers} />
         )}
