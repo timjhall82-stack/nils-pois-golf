@@ -73,10 +73,10 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & IMAGES ---
-const APP_VERSION = "v2.4";
+const APP_VERSION = "v2.5";
 
 // 1. CUSTOM LOGO: Points to /public/NilsPoisGolfCircle.jpg
-const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
+const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.jpg"; 
 
 // 2. CUSTOM BACKGROUND: Dark Masters Green Texture
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
@@ -94,7 +94,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = 'nils-pois-live-v2.5'; 
+const appId = 'nils-pois-live-v2.5';
 
 // --- Constants ---
 const COLLECTION_NAME = 'golf_scores';
@@ -284,7 +284,7 @@ const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput,
           <img 
             src={CUSTOM_LOGO_URL} 
             alt="Logo" 
-            className="w-48 h-48 mx-auto object-cover rounded-full drop-shadow-2xl border-4 border-white/10 bg-slate-900" 
+            className="w-48 h-48 mx-auto object-cover rounded-full drop-shadow-2xl filter brightness-110 border-4 border-white/10 bg-slate-900" 
           />
       </div>
       <h1 className="text-4xl font-black tracking-tighter text-white drop-shadow-lg">Nils Pois</h1>
