@@ -80,7 +80,7 @@ const CUSTOM_LOGO_URL = "/Logo.png";
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
 
 // ⚠️ HARDCODED ID - Ensures consistent data path across the entire app
-const APP_ID = "nils-pois-golf-v1"; 
+const APP_ID = "nils-pois-golf-v5"; 
 const COLLECTION_NAME = 'golf_scores';
 
 const DEFAULT_PARS = [4, 4, 3, 4, 4, 5, 4, 3, 5, 4, 4, 3, 5, 4, 4, 3, 5, 4];
