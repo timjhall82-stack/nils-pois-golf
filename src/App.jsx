@@ -69,13 +69,14 @@ import {
   FlagTriangleRight,
   Ban,
   LogIn,
-  Edit 
+  Edit,
+  Image as ImageIcon
 } from 'lucide-react';
 
 // --- CONFIGURATION & IMAGES ---
-const APP_VERSION = "v2.5";
+const APP_VERSION = "v2.6";
 
-// 1. CUSTOM LOGO: Points to /public/NilsPoisGolfCircle.jpg
+// 1. CUSTOM LOGO: Points to /NilsPoisGolfInAppLogo.jpg
 const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.jpg"; 
 
 // 2. CUSTOM BACKGROUND: Dark Masters Green Texture
@@ -94,7 +95,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = 'nils-pois-live-v2.5';
+const appId = 'nils-pois-live-v2.6';
 
 // --- Constants ---
 const COLLECTION_NAME = 'golf_scores';
@@ -212,6 +213,7 @@ const HistoryView = ({ userId, onClose, onLoadGame }) => {
 const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
     const [name, setName] = useState('');
     const [hcp, setHcp] = useState('');
+    const [imgUrl, setImgUrl] = useState(''); // New State
     const [editingId, setEditingId] = useState(null);
     const [submitting, setSubmitting] = useState(false);
 
@@ -220,20 +222,36 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
         if (!name.trim()) return;
         setSubmitting(true);
         try {
+            const playerData = { 
+                name: name, 
+                handicap: hcp || 0, 
+                avatarUrl: imgUrl, // Save URL
+                createdAt: new Date().toISOString() 
+            };
+
             if (editingId) {
                 const playerRef = doc(db, 'artifacts', appId, 'users', userId, 'saved_players', editingId);
-                await updateDoc(playerRef, { name: name, handicap: hcp || 0 });
+                await updateDoc(playerRef, { 
+                    name: name, 
+                    handicap: hcp || 0,
+                    avatarUrl: imgUrl 
+                });
                 setEditingId(null);
             } else {
                 const playersRef = collection(db, 'artifacts', appId, 'users', userId, 'saved_players');
-                await addDoc(playersRef, { name: name, handicap: hcp || 0, createdAt: new Date().toISOString() });
+                await addDoc(playersRef, playerData);
             }
-            setName(''); setHcp('');
+            setName(''); setHcp(''); setImgUrl('');
         } catch (err) { alert("Error saving player: " + err.message); } finally { setSubmitting(false); }
     };
 
-    const handleEdit = (player) => { setName(player.name); setHcp(player.handicap); setEditingId(player.id); };
-    const handleCancelEdit = () => { setName(''); setHcp(''); setEditingId(null); };
+    const handleEdit = (player) => { 
+        setName(player.name); 
+        setHcp(player.handicap); 
+        setImgUrl(player.avatarUrl || ''); // Load URL
+        setEditingId(player.id); 
+    };
+    const handleCancelEdit = () => { setName(''); setHcp(''); setImgUrl(''); setEditingId(null); };
 
     const handleDelete = async (id) => {
         if (confirm("Remove player from portal?")) { try { await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'saved_players', id)); } catch (err) { alert("Error deleting: " + err.message); } }
@@ -246,22 +264,46 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
                 <button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X size={20} /></button>
             </div>
             <div className="flex-1 overflow-y-auto space-y-6">
-                <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
-                    <div className="flex justify-between items-center mb-3">
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-3">
+                    <div className="flex justify-between items-center">
                         <h3 className="text-xs font-bold text-slate-500 uppercase">{editingId ? 'Edit Player' : 'Add New Player'}</h3>
                         {editingId && (<button onClick={handleCancelEdit} className="text-[10px] text-red-400 hover:underline">Cancel</button>)}
                     </div>
+                    
+                    <div className="flex gap-2">
+                         <input className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-blue-500 outline-none" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
+                         <input type="number" className="w-16 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-blue-500 outline-none" placeholder="HCP" value={hcp} onChange={(e) => setHcp(e.target.value)} />
+                    </div>
+                    
                     <div className="flex gap-2 items-center">
-                        <input className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-blue-500 outline-none w-0" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-                        <input type="number" className="w-16 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-blue-500 outline-none" placeholder="HCP" value={hcp} onChange={(e) => setHcp(e.target.value)} />
+                        <div className="relative flex-1">
+                             <ImageIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                             <input 
+                                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 pl-9 text-sm text-white focus:border-blue-500 outline-none"
+                                placeholder="Image URL (optional)"
+                                value={imgUrl}
+                                onChange={(e) => setImgUrl(e.target.value)}
+                             />
+                        </div>
                         <button type="button" onClick={handleSubmit} disabled={!name.trim() || submitting} className={`text-white p-2 rounded-lg font-bold disabled:opacity-50 flex-shrink-0 w-10 flex items-center justify-center ${editingId ? 'bg-yellow-600' : 'bg-blue-600'}`}>{submitting ? <Activity className="animate-spin" size={16}/> : (editingId ? <Save size={20}/> : <Plus size={20} />)}</button>
                     </div>
                 </div>
+
                 <div className="space-y-2">
                     <h3 className="text-xs font-bold text-slate-500 uppercase ml-1">Saved Players</h3>
                     {savedPlayers.length === 0 ? <div className="text-center text-slate-600 py-8 text-sm">No players saved yet.</div> : savedPlayers.map(p => (
                             <div key={p.id} className={`bg-slate-900 border p-3 rounded-xl flex justify-between items-center ${editingId === p.id ? 'border-yellow-600/50 bg-yellow-900/10' : 'border-slate-800'}`}>
-                                <div className="truncate pr-2 flex-1"><div className="font-bold text-white truncate">{p.name}</div><div className="text-xs text-slate-500">HCP: {p.handicap}</div></div>
+                                <div className="flex items-center gap-3 overflow-hidden flex-1">
+                                    {p.avatarUrl ? (
+                                        <img src={p.avatarUrl} alt={p.name} className="w-10 h-10 rounded-full object-cover bg-slate-800 border border-slate-700" onError={(e) => e.target.style.display='none'} />
+                                    ) : (
+                                        <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-500"><User size={20}/></div>
+                                    )}
+                                    <div className="truncate">
+                                        <div className="font-bold text-white truncate">{p.name}</div>
+                                        <div className="text-xs text-slate-500">HCP: {p.handicap}</div>
+                                    </div>
+                                </div>
                                 <div className="flex gap-1">
                                     <button onClick={() => handleEdit(p)} className="p-2 text-slate-400 hover:text-yellow-500 transition flex-shrink-0"><Edit size={16} /></button>
                                     <button onClick={() => handleDelete(p.id)} className="p-2 text-slate-600 hover:text-red-500 transition flex-shrink-0"><Trash2 size={16} /></button>
@@ -431,6 +473,7 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
   const [adhocHcp, setAdhocHcp] = useState('');
   const [adhocGuests, setAdhocGuests] = useState([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [hostAvatar, setHostAvatar] = useState(''); // Track Host Avatar
 
   const handlePresetChange = (e) => {
     const key = e.target.value;
@@ -444,7 +487,7 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
   const removeAdhoc = (id) => { setAdhocGuests(prev => prev.filter(g => g.id !== id)); };
   const handleStartGame = async () => {
       setIsCreating(true);
-      try { const portalFriends = savedPlayers.filter(p => selectedFriends.has(p.id)); const fullRoster = [...portalFriends, ...adhocGuests]; await createGame(fullRoster); } catch(e) { alert("Error creating game: " + e.message); setIsCreating(false); }
+      try { const portalFriends = savedPlayers.filter(p => selectedFriends.has(p.id)); const fullRoster = [...portalFriends, ...adhocGuests]; await createGame(fullRoster, hostAvatar); } catch(e) { alert("Error creating game: " + e.message); setIsCreating(false); }
   };
   const ModeButton = ({ mode, icon: Icon, label }) => (<button onClick={() => setGameMode(mode)} className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${gameMode === mode ? 'border-emerald-500 bg-emerald-500/20 text-white' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-500'}`}><Icon size={20} className="mb-1" /><span className="text-[10px] font-bold uppercase">{label}</span></button>);
 
@@ -458,10 +501,14 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                 <div className="flex justify-between items-center mb-3">
                     <label className="text-xs font-bold text-emerald-400 uppercase flex items-center"><User size={12} className="mr-1"/> Host Player (You)</label>
                     {savedPlayers && savedPlayers.length > 0 && (
-                        <select className="bg-slate-800 text-xs text-blue-400 border border-slate-700 rounded px-2 py-1 outline-none max-w-[120px]" onChange={(e) => { const p = savedPlayers.find(sp => sp.id === e.target.value); if(p) { setPlayerName(p.name); setHandicapIndex(p.handicap); } }} value=""><option value="" disabled>Load Profile...</option>{savedPlayers.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}</select>
+                        <select className="bg-slate-800 text-xs text-blue-400 border border-slate-700 rounded px-2 py-1 outline-none max-w-[120px]" onChange={(e) => { const p = savedPlayers.find(sp => sp.id === e.target.value); if(p) { setPlayerName(p.name); setHandicapIndex(p.handicap); setHostAvatar(p.avatarUrl || ''); } }} value=""><option value="" disabled>Load Profile...</option>{savedPlayers.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}</select>
                     )}
                 </div>
-                <div className="flex gap-3"><input className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500 w-0" placeholder="Your Name" value={playerName} onChange={(e) => setPlayerName(e.target.value)} /><input type="number" className="w-20 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="HCP" value={handicapIndex} onChange={(e) => setHandicapIndex(e.target.value)} /></div>
+                <div className="flex gap-3">
+                    {hostAvatar && <img src={hostAvatar} className="w-10 h-10 rounded-full object-cover border border-slate-500" alt="Host" />}
+                    <input className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500 w-0" placeholder="Your Name" value={playerName} onChange={(e) => setPlayerName(e.target.value)} />
+                    <input type="number" className="w-20 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="HCP" value={handicapIndex} onChange={(e) => setHandicapIndex(e.target.value)} />
+                </div>
             </div>
             <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 space-y-4">
                 <label className="text-xs font-bold text-emerald-400 uppercase flex items-center"><Users size={12} className="mr-1"/> Add Players</label>
@@ -475,7 +522,13 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                         <div className="text-[10px] text-slate-500 uppercase font-bold">From Portal</div>
                         <div className="max-h-32 overflow-y-auto pr-1">
                             {savedPlayers.map(p => (
-                                <button type="button" key={p.id} onClick={() => toggleFriend(p.id)} className={`w-full flex items-center justify-between p-2 rounded-lg border text-xs mb-1 transition-all ${selectedFriends.has(p.id) ? 'bg-emerald-600/20 border-emerald-600 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'}`}><span className="truncate mr-2">{p.name}</span><div className="flex-shrink-0">{selectedFriends.has(p.id) ? <CheckSquare size={14} className="text-emerald-500"/> : <Square size={14} />}</div></button>
+                                <button type="button" key={p.id} onClick={() => toggleFriend(p.id)} className={`w-full flex items-center justify-between p-2 rounded-lg border text-xs mb-1 transition-all ${selectedFriends.has(p.id) ? 'bg-emerald-600/20 border-emerald-600 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'}`}>
+                                    <div className="flex items-center gap-2 overflow-hidden">
+                                        {p.avatarUrl && <img src={p.avatarUrl} className="w-6 h-6 rounded-full object-cover" />}
+                                        <span className="truncate">{p.name}</span>
+                                    </div>
+                                    <div className="flex-shrink-0">{selectedFriends.has(p.id) ? <CheckSquare size={14} className="text-emerald-500"/> : <Square size={14} />}</div>
+                                </button>
                             ))}
                         </div>
                     </div>
@@ -485,7 +538,7 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                         <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Who's Playing?</div>
                         <div className="flex flex-wrap gap-2">
                             {playerName && <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded border border-emerald-500/30 flex items-center">{playerName} <UserCheck size={10} className="ml-1"/></span>}
-                            {savedPlayers.filter(p => selectedFriends.has(p.id)).map(p => <span key={p.id} className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded border border-slate-700">{p.name}</span>)}
+                            {savedPlayers.filter(p => selectedFriends.has(p.id)).map(p => <span key={p.id} className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded border border-slate-700 flex items-center gap-1">{p.avatarUrl && <img src={p.avatarUrl} className="w-4 h-4 rounded-full"/>}{p.name}</span>)}
                             {adhocGuests.map(g => <span key={g.id} className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded border border-blue-500/30 flex items-center group">{g.name} <button type="button" onClick={() => removeAdhoc(g.id)} className="ml-1 hover:text-white"><X size={10}/></button></span>)}
                         </div>
                     </div>
@@ -548,7 +601,13 @@ const ScoreView = ({
 
                   return (
                       <div key={p.id} className="bg-slate-800 p-2 rounded-xl flex items-center justify-between border border-slate-700 w-full max-w-full">
-                          <div className="flex-1 min-w-0 pr-2"><div className="font-bold text-sm text-slate-200 truncate">{p.playerName}</div><div className="text-[10px] text-slate-500 truncate">CH: {p.courseHandicap} • {statPreview}</div></div>
+                          <div className="flex items-center flex-1 min-w-0 pr-2">
+                              {p.avatarUrl && <img src={p.avatarUrl} className="w-10 h-10 rounded-full object-cover border border-slate-600 mr-3" alt={p.playerName}/>}
+                              <div>
+                                  <div className="font-bold text-sm text-slate-200 truncate">{p.playerName}</div>
+                                  <div className="text-[10px] text-slate-500 truncate">CH: {p.courseHandicap} • {statPreview}</div>
+                              </div>
+                          </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                              <button onClick={() => {
                                  if (isNR) updateScore(p.userId, currentHole, holePar); 
@@ -581,7 +640,13 @@ const LeaderboardView = ({ leaderboardData, user, activeGameMode }) => (
               {leaderboardData.map((player, index) => (
                   <div key={player.id} className={`flex items-center p-3 border-b border-slate-800/50 ${player.userId === user.uid ? 'bg-emerald-900/10' : ''}`}>
                       <div className="w-8 text-center font-mono text-slate-600 text-sm">{index + 1}</div>
-                      <div className="flex-1 pl-2 truncate relative"><div className="text-white font-medium text-sm flex items-center">{player.playerName}{player.teeGroup && <span className="ml-2 text-[8px] border border-slate-600 text-slate-400 px-1 rounded-sm font-mono">G{player.teeGroup}</span>}</div><div className="text-[10px] text-slate-500">CH: {player.courseHandicap}</div></div>
+                      <div className="flex-1 pl-2 truncate relative flex items-center">
+                          {player.avatarUrl && <img src={player.avatarUrl} className="w-6 h-6 rounded-full mr-2 object-cover border border-slate-600" alt={player.playerName}/>}
+                          <div className="truncate">
+                              <div className="text-white font-medium text-sm flex items-center">{player.playerName}{player.teeGroup && <span className="ml-2 text-[8px] border border-slate-600 text-slate-400 px-1 rounded-sm font-mono">G{player.teeGroup}</span>}</div>
+                              <div className="text-[10px] text-slate-500">CH: {player.courseHandicap}</div>
+                          </div>
+                      </div>
                       <div className="w-8 text-center text-slate-400 text-sm">{player.holesPlayed}</div>
                       {activeGameMode === 'stableford' && <div className="w-16 text-center font-bold font-mono text-lg text-emerald-400">{player.totalPoints}</div>}
                       {activeGameMode === 'match' && <div className={`w-16 text-center font-bold font-mono text-sm ${player.matchStatus === 'AS' ? 'text-slate-400' : (player.matchStatus.includes('UP') ? 'text-emerald-400' : 'text-red-400')}`}>{player.matchStatus}</div>}
@@ -603,6 +668,9 @@ const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestName, se
         return { groups, unassigned };
     }, [players]);
 
+    // Local state for Guest Avatar (Tee Sheet)
+    const [guestAvatar, setGuestAvatar] = useState('');
+
     return (
         <div className="fixed inset-0 bg-black/90 z-50 flex flex-col p-4 animate-in fade-in duration-200">
              <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold text-white flex items-center"><Users className="mr-2 text-emerald-500" /> Tee Sheet</h2><button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X size={20} /></button></div>
@@ -610,9 +678,16 @@ const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestName, se
                 <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
                     <div className="flex justify-between items-center mb-3">
                         <h3 className="text-xs font-bold text-slate-500 uppercase flex items-center"><UserPlus size={12} className="mr-1"/> Add Guest Player</h3>
-                        {savedPlayers && savedPlayers.length > 0 && (<select className="bg-slate-800 text-xs text-blue-400 border border-slate-700 rounded px-2 py-1 outline-none" onChange={(e) => { const p = savedPlayers.find(sp => sp.id === e.target.value); if(p) { setNewGuestName(p.name); setNewGuestHcp(p.handicap); } }} value=""><option value="" disabled>Pick Saved...</option>{savedPlayers.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}</select>)}
+                        {savedPlayers && savedPlayers.length > 0 && (<select className="bg-slate-800 text-xs text-blue-400 border border-slate-700 rounded px-2 py-1 outline-none" onChange={(e) => { const p = savedPlayers.find(sp => sp.id === e.target.value); if(p) { setNewGuestName(p.name); setNewGuestHcp(p.handicap); setGuestAvatar(p.avatarUrl || ''); } }} value=""><option value="" disabled>Pick Saved...</option>{savedPlayers.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}</select>)}
                     </div>
-                    <div className="flex gap-2"><input className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-emerald-500 outline-none" placeholder="Name" value={newGuestName} onChange={(e) => setNewGuestName(e.target.value)} /><input type="number" className="w-16 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-emerald-500 outline-none" placeholder="HCP" value={newGuestHcp} onChange={(e) => setNewGuestHcp(e.target.value)} /><button onClick={(e) => { e.preventDefault(); addGuest(); }} className="bg-emerald-600 text-white p-2 rounded-lg font-bold disabled:opacity-50" disabled={!newGuestName.trim()}><Plus size={20} /></button></div>
+                    <div className="flex gap-2 mb-2">
+                        <input className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-emerald-500 outline-none" placeholder="Name" value={newGuestName} onChange={(e) => setNewGuestName(e.target.value)} />
+                        <input type="number" className="w-16 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-emerald-500 outline-none" placeholder="HCP" value={newGuestHcp} onChange={(e) => setNewGuestHcp(e.target.value)} />
+                    </div>
+                    <div className="flex gap-2">
+                        <input className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-emerald-500 outline-none" placeholder="Image URL (Optional)" value={guestAvatar} onChange={(e) => setGuestAvatar(e.target.value)} />
+                        <button onClick={(e) => { e.preventDefault(); addGuest(guestAvatar); setGuestAvatar(''); }} className="bg-emerald-600 text-white p-2 rounded-lg font-bold disabled:opacity-50" disabled={!newGuestName.trim()}><Plus size={20} /></button>
+                    </div>
                 </div>
                 <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
                     <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center"><Shuffle size={12} className="mr-1"/> Shuffle Groups</h3>
@@ -620,10 +695,14 @@ const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestName, se
                 </div>
                 <div className="space-y-4">
                     {groupedPlayers.unassigned.length > 0 && (
-                        <div className="bg-slate-900 rounded-xl border border-slate-800 p-3"><div className="text-xs font-bold text-slate-500 uppercase mb-2">Unassigned / Lobby</div>{groupedPlayers.unassigned.map(p => (<div key={p.id} className="py-2 border-b border-slate-800/50 last:border-0 text-sm flex justify-between"><span>{p.playerName}</span><span className="text-slate-500 font-mono text-xs">CH: {p.courseHandicap}</span></div>))}</div>
+                        <div className="bg-slate-900 rounded-xl border border-slate-800 p-3"><div className="text-xs font-bold text-slate-500 uppercase mb-2">Unassigned / Lobby</div>{groupedPlayers.unassigned.map(p => (<div key={p.id} className="py-2 border-b border-slate-800/50 last:border-0 text-sm flex justify-between items-center">
+                            <div className="flex items-center gap-2">{p.avatarUrl && <img src={p.avatarUrl} className="w-6 h-6 rounded-full object-cover" />}<span>{p.playerName}</span></div>
+                            <span className="text-slate-500 font-mono text-xs">CH: {p.courseHandicap}</span></div>))}</div>
                     )}
                     {Object.keys(groupedPlayers.groups).sort().map(gNum => (
-                        <div key={gNum} className="bg-slate-900 rounded-xl border border-slate-800 p-3 relative overflow-hidden"><div className="absolute top-0 left-0 bottom-0 w-1 bg-emerald-500"></div><div className="text-xs font-bold text-emerald-400 uppercase mb-2 pl-2">Group {gNum}</div>{groupedPlayers.groups[gNum].map(p => (<div key={p.id} className="py-2 border-b border-slate-800/50 last:border-0 text-sm flex justify-between pl-2"><span>{p.playerName}</span><span className="text-slate-500 font-mono text-xs">CH: {p.courseHandicap}</span></div>))}</div>
+                        <div key={gNum} className="bg-slate-900 rounded-xl border border-slate-800 p-3 relative overflow-hidden"><div className="absolute top-0 left-0 bottom-0 w-1 bg-emerald-500"></div><div className="text-xs font-bold text-emerald-400 uppercase mb-2 pl-2">Group {gNum}</div>{groupedPlayers.groups[gNum].map(p => (<div key={p.id} className="py-2 border-b border-slate-800/50 last:border-0 text-sm flex justify-between pl-2 items-center">
+                            <div className="flex items-center gap-2">{p.avatarUrl && <img src={p.avatarUrl} className="w-6 h-6 rounded-full object-cover" />}<span>{p.playerName}</span></div>
+                            <span className="text-slate-500 font-mono text-xs">CH: {p.courseHandicap}</span></div>))}</div>
                     ))}
                 </div>
             </div>
@@ -708,20 +787,31 @@ export default function App() {
   const performGoogleSearch = () => { if (!courseName) return; const query = `${courseName} golf course scorecard slope rating`; window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank'); };
   const startSetup = () => { if (!courseName.trim()) { setError("Name the game first"); return; } setView('setup'); };
 
-  const createGame = async (friendsToAdd = []) => {
+  const createGame = async (friendsToAdd = [], hostAvatarUrl = '') => {
       if (!playerName) { throw new Error("Host name required"); }
       const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
       const settingsId = `SETTINGS_${newCode}`;
       const totalPar = pars.reduce((a, b) => a + b, 0);
       await setDoc(doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, settingsId), { courseName, slope, rating, pars, si, totalPar, gameMode, createdAt: new Date().toISOString() });
-      await joinGameLogic(newCode, courseName, slope, rating, totalPar);
+      await joinGameLogic(newCode, courseName, slope, rating, totalPar, hostAvatarUrl);
       if (friendsToAdd.length > 0) {
           const batch = writeBatch(db);
           friendsToAdd.forEach(friend => {
               const guestId = `guest_${Math.random().toString(36).substring(2, 9)}`;
               const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, `${newCode}_${guestId}`);
               const ch = calculateCourseHandicap(friend.handicap, slope, rating, totalPar);
-              batch.set(docRef, { gameId: newCode, userId: guestId, playerName: friend.name, handicapIndex: friend.handicap, courseHandicap: ch, type: 'player', isGuest: true, teeGroup: null, lastActive: new Date().toISOString() });
+              batch.set(docRef, { 
+                  gameId: newCode, 
+                  userId: guestId, 
+                  playerName: friend.name, 
+                  handicapIndex: friend.handicap, 
+                  courseHandicap: ch, 
+                  avatarUrl: friend.avatarUrl || '',
+                  type: 'player', 
+                  isGuest: true, 
+                  teeGroup: null, 
+                  lastActive: new Date().toISOString() 
+              });
           });
           await batch.commit();
       }
@@ -737,7 +827,7 @@ export default function App() {
     await joinGameLogic(code, settings.courseName, settings.slope, settings.rating, settings.totalPar);
   };
 
-  const joinGameLogic = async (code, cName, cSlope, cRating, cTotalPar) => {
+  const joinGameLogic = async (code, cName, cSlope, cRating, cTotalPar, avatarUrl = '') => {
     setLoading(true);
     setGameId(code);
     localStorage.setItem('golf_game_id', code);
@@ -745,7 +835,17 @@ export default function App() {
     localStorage.setItem('golf_player_hcp', handicapIndex);
     const ch = calculateCourseHandicap(handicapIndex, cSlope, cRating, cTotalPar);
     const playerDocId = `${code}_${user.uid}`;
-    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, playerDocId), { gameId: code, userId: user.uid, playerName: playerName, handicapIndex: handicapIndex, courseHandicap: ch, type: 'player', lastActive: new Date().toISOString() }, { merge: true });
+    // Save Host Avatar if provided
+    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, playerDocId), { 
+        gameId: code, 
+        userId: user.uid, 
+        playerName: playerName, 
+        handicapIndex: handicapIndex, 
+        courseHandicap: ch, 
+        avatarUrl: avatarUrl, 
+        type: 'player', 
+        lastActive: new Date().toISOString() 
+    }, { merge: true });
     setView('score');
     setLoading(false);
   };
@@ -764,14 +864,25 @@ export default function App() {
   const confirmLeave = () => { localStorage.removeItem('golf_game_id'); setGameId(''); setPlayers([]); setGameSettings(null); setView('lobby'); setJoinCodeInput(''); setShowExitModal(false); };
   const loadHistoricalGame = (oldGameId) => { if(!oldGameId) return; setGameId(oldGameId); setShowHistory(false); setView('leaderboard'); };
 
-  const addGuestPlayer = async () => {
+  const addGuestPlayer = async (avatarUrl = '') => {
       if (!newGuestName.trim()) return;
       if (!gameId) return;
       const guestId = `guest_${Math.random().toString(36).substring(2, 9)}`;
       const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, `${gameId}_${guestId}`);
       const cSettings = gameSettings || {};
       const ch = calculateCourseHandicap(newGuestHcp, cSettings.slope, cSettings.rating, cSettings.totalPar);
-      await setDoc(docRef, { gameId: gameId, userId: guestId, playerName: newGuestName, handicapIndex: newGuestHcp || 0, courseHandicap: ch, type: 'player', isGuest: true, teeGroup: null, lastActive: new Date().toISOString() });
+      await setDoc(docRef, { 
+          gameId: gameId, 
+          userId: guestId, 
+          playerName: newGuestName, 
+          handicapIndex: newGuestHcp || 0, 
+          courseHandicap: ch, 
+          avatarUrl: avatarUrl,
+          type: 'player', 
+          isGuest: true, 
+          teeGroup: null, 
+          lastActive: new Date().toISOString() 
+      });
       setNewGuestName(''); setNewGuestHcp('');
   };
 
