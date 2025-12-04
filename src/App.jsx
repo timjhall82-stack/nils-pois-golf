@@ -131,7 +131,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = 'nils-pois-live-v3';
+const appId = 'nils-pois-live-v4';
 
 // --- Helper Functions ---
 const calculateNetScore = (gross, holeIdx, ch, siList) => {
