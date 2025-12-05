@@ -669,6 +669,109 @@ const LeaderboardView = ({ leaderboardData, user, activeGameMode, teamMode, game
   </div>
 );
 
+const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestName, setNewGuestName, newGuestHcp, setNewGuestHcp, savedPlayers, updatePlayerGroup }) => {
+    const [targetGroupSize, setTargetGroupSize] = useState(4);
+    const [guestAvatar, setGuestAvatar] = useState('');
+
+    const groupedPlayers = useMemo(() => {
+        const groups = {}; const unassigned = [];
+        players.forEach(p => { if (p.teeGroup) { if (!groups[p.teeGroup]) groups[p.teeGroup] = []; groups[p.teeGroup].push(p); } else { unassigned.push(p); } });
+        return { groups, unassigned };
+    }, [players]);
+
+    return (
+        <div className="fixed inset-0 bg-black/90 z-50 flex flex-col p-4 animate-in fade-in duration-200">
+             <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold text-white flex items-center"><Users className="mr-2 text-emerald-500" /> Tee Sheet</h2><button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X size={20} /></button></div>
+            <div className="flex-1 overflow-y-auto space-y-6">
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
+                    <div className="flex justify-between items-center mb-3">
+                        <h3 className="text-xs font-bold text-slate-500 uppercase flex items-center"><UserPlus size={12} className="mr-1"/> Add Guest Player</h3>
+                        {savedPlayers && savedPlayers.length > 0 && (<select className="bg-slate-800 text-xs text-blue-400 border border-slate-700 rounded px-2 py-1 outline-none" onChange={(e) => { const p = savedPlayers.find(sp => sp.id === e.target.value); if(p) { setNewGuestName(p.name); setNewGuestHcp(p.handicap); setGuestAvatar(p.avatarUrl || ''); } }} value=""><option value="" disabled>Pick Saved...</option>{savedPlayers.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}</select>)}
+                    </div>
+                    <div className="flex gap-2 mb-2">
+                        <input className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-emerald-500 outline-none" placeholder="Name" value={newGuestName} onChange={(e) => setNewGuestName(e.target.value)} />
+                        <input type="number" className="w-16 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-emerald-500 outline-none" placeholder="HCP" value={newGuestHcp} onChange={(e) => setNewGuestHcp(e.target.value)} />
+                    </div>
+                    <div className="flex gap-2">
+                        <input className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-emerald-500 outline-none" placeholder="Image URL (Optional)" value={guestAvatar} onChange={(e) => setGuestAvatar(e.target.value)} />
+                        <button onClick={(e) => { e.preventDefault(); addGuest(guestAvatar); setGuestAvatar(''); }} className="bg-emerald-600 text-white p-2 rounded-lg font-bold disabled:opacity-50" disabled={!newGuestName.trim()}><Plus size={20} /></button>
+                    </div>
+                </div>
+
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center"><Shuffle size={12} className="mr-1"/> Shuffle Groups</h3>
+                    
+                    <div className="flex items-center justify-between mb-3">
+                         <span className="text-xs text-slate-400">Size per group:</span>
+                         <div className="flex bg-slate-950 rounded-lg p-1 border border-slate-700">
+                            {[2,3,4].map(size => (
+                                <button 
+                                    key={size} 
+                                    onClick={() => setTargetGroupSize(size)}
+                                    className={`px-4 py-1.5 rounded text-xs font-bold transition-all ${targetGroupSize === size ? 'bg-emerald-600 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}
+                                >
+                                    {size}
+                                </button>
+                            ))}
+                         </div>
+                    </div>
+
+                    <button 
+                        onClick={() => randomize(targetGroupSize)} 
+                        className="w-full py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm text-emerald-500 font-bold flex justify-center items-center transition-all active:scale-95"
+                    >
+                        <Shuffle size={16} className="mr-2"/> 
+                        Randomise All Players
+                    </button>
+                </div>
+
+                <div className="space-y-4">
+                    {groupedPlayers.unassigned.length > 0 && (
+                        <div className="bg-slate-900 rounded-xl border border-slate-800 p-3"><div className="text-xs font-bold text-slate-500 uppercase mb-2">Unassigned / Lobby</div>{groupedPlayers.unassigned.map(p => (
+                            <div key={p.id} className="py-2 border-b border-slate-800/50 last:border-0 text-sm flex justify-between items-center">
+                                <div className="flex items-center gap-2">{p.avatarUrl && <img src={p.avatarUrl} className="w-6 h-6 rounded-full object-cover" />}<span>{p.playerName}</span></div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-slate-500 font-mono text-xs mr-2">CH: {p.courseHandicap}</span>
+                                    <select 
+                                        className="bg-slate-800 border border-slate-700 text-xs rounded p-1 outline-none text-slate-300"
+                                        value={p.teeGroup || ''} 
+                                        onChange={(e) => updatePlayerGroup(p.id, e.target.value ? parseInt(e.target.value) : null)}
+                                    >
+                                        <option value="">None</option>
+                                        {[1,2,3,4,5,6,7,8,9,10].map(g => (
+                                            <option key={g} value={g}>Grp {g}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        ))}</div>
+                    )}
+                    {Object.keys(groupedPlayers.groups).sort().map(gNum => (
+                        <div key={gNum} className="bg-slate-900 rounded-xl border border-slate-800 p-3 relative overflow-hidden"><div className="absolute top-0 left-0 bottom-0 w-1 bg-emerald-500"></div><div className="text-xs font-bold text-emerald-400 uppercase mb-2 pl-2">Group {gNum}</div>{groupedPlayers.groups[gNum].map(p => (
+                            <div key={p.id} className="py-2 border-b border-slate-800/50 last:border-0 text-sm flex justify-between pl-2 items-center">
+                                <div className="flex items-center gap-2">{p.avatarUrl && <img src={p.avatarUrl} className="w-6 h-6 rounded-full object-cover" />}<span>{p.playerName}</span></div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-slate-500 font-mono text-xs mr-2">CH: {p.courseHandicap}</span>
+                                    <select 
+                                        className="bg-slate-800 border border-slate-700 text-xs rounded p-1 outline-none text-slate-300"
+                                        value={p.teeGroup || ''} 
+                                        onChange={(e) => updatePlayerGroup(p.id, e.target.value ? parseInt(e.target.value) : null)}
+                                    >
+                                        <option value="">None</option>
+                                        {[1,2,3,4,5,6,7,8,9,10].map(g => (
+                                            <option key={g} value={g}>Grp {g}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        ))}</div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // --- Main App Component ---
 
 export default function App() {
