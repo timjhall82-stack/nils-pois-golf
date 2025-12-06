@@ -72,11 +72,15 @@ import {
   Edit,
   Camera,
   Users2,
-  Percent
+  Percent,
+  Info,
+  HelpCircle,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-const APP_VERSION = "v3.4";
+const APP_VERSION = "v3.5";
 const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
 
@@ -160,6 +164,81 @@ const getShotsOnHole = (playingHandicap, holeSi) => {
 
 // --- Components ---
 
+const InfoPage = ({ onClose }) => {
+    const [openSection, setOpenSection] = useState(null);
+
+    const toggle = (sec) => setOpenSection(openSection === sec ? null : sec);
+
+    const FAQItem = ({ title, id, children }) => (
+        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden mb-2">
+            <button 
+                onClick={() => toggle(id)}
+                className="w-full flex justify-between items-center p-4 text-left font-bold text-slate-200 hover:bg-slate-800/50"
+            >
+                {title}
+                {openSection === id ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
+            </button>
+            {openSection === id && (
+                <div className="p-4 pt-0 text-sm text-slate-400 bg-slate-900/50 border-t border-slate-800/50">
+                    {children}
+                </div>
+            )}
+        </div>
+    );
+
+    return (
+        <div className="fixed inset-0 bg-slate-950 z-[70] flex flex-col animate-in slide-in-from-bottom duration-300">
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900">
+                <h3 className="font-bold text-white flex items-center text-lg"><HelpCircle size={20} className="mr-2 text-blue-400" /> User Guide</h3>
+                <button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X size={20} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div className="bg-emerald-900/20 border border-emerald-900/50 p-4 rounded-xl text-center">
+                    <img src={CUSTOM_LOGO_URL} className="w-16 h-16 mx-auto mb-2 object-contain" alt="Logo"/>
+                    <h2 className="font-bold text-emerald-400 text-lg">Nils Pois Golf Scorer</h2>
+                    <p className="text-xs text-emerald-600 font-mono mt-1">{APP_VERSION}</p>
+                </div>
+
+                <FAQItem title="Getting Started" id="start">
+                    <p className="mb-2">1. <strong>Create Game:</strong> Enter a course name and set up the details. Tap "Setup Game".</p>
+                    <p className="mb-2">2. <strong>Add Players:</strong> Add yourself (Host) and any friends. Use the Player Portal to save friends for next time.</p>
+                    <p>3. <strong>Join Game:</strong> Friends can join on their own phones using the 6-letter <strong>Game Code</strong> displayed at the top of the scorecard.</p>
+                </FAQItem>
+
+                <FAQItem title="Scoring & Saving" id="scoring">
+                    <p className="mb-2">Scores are <strong>saved automatically</strong> to the cloud instantly. You don't need to press a save button.</p>
+                    <p className="mb-2"><strong>NR (No Return):</strong> Use the NR button for a hole where a player picks up. This counts as 0 points in Stableford.</p>
+                    <p><strong>Sync Status:</strong> Check the icon in the top header. <span className="text-emerald-500">Green Check</span> means data is safe.</p>
+                </FAQItem>
+
+                <FAQItem title="Game Modes" id="modes">
+                    <ul className="list-disc pl-4 space-y-2">
+                        <li><strong>Stroke Play:</strong> Classic Net & Gross scoring.</li>
+                        <li><strong>Stableford:</strong> Points calculated based on Net Score vs Par. (Net Par = 2pts).</li>
+                        <li><strong>Match Play:</strong> Tracks holes Won/Lost vs the Host. Can use full handicap or differences.</li>
+                        <li><strong>Skins:</strong> Lowest unique Net Score wins the hole. Ties carry over the pot to the next hole.</li>
+                    </ul>
+                </FAQItem>
+
+                <FAQItem title="Teams & Pairs" id="teams">
+                    <p className="mb-2">Select <strong>Pairs (Better Ball)</strong> in setup to play 2vs2.</p>
+                    <p className="mb-2"><strong>Important:</strong> You must assign players to <strong>Tee Groups</strong> (Grp 1, Grp 2) using the <Users size={12} className="inline"/> button inside the game.</p>
+                    <p>The leaderboard will show the <strong>Best Net Score</strong> from the pair for each hole.</p>
+                </FAQItem>
+
+                <FAQItem title="Handicap Calculations" id="hcp">
+                    <p className="mb-2"><strong>Full:</strong> Everyone plays off their full Course Handicap.</p>
+                    <p><strong>Difference:</strong> In Match/Skins, the lowest handicap player plays off 0. Everyone else receives shots = (Their Hcp - Lowest Hcp).</p>
+                </FAQItem>
+
+                <FAQItem title="App Installation" id="install">
+                    <p>For the best experience, tap the <strong>Share</strong> button on your browser and select <strong>"Add to Home Screen"</strong>. This removes the address bar and makes it run like a native app.</p>
+                </FAQItem>
+            </div>
+        </div>
+    );
+};
+
 const SyncStatus = ({ status }) => {
     if (status === 'saving') return <div className="flex items-center text-yellow-500 text-[10px] font-medium bg-slate-800 px-2 py-1 rounded-full border border-slate-700"><Loader2 size={12} className="animate-spin mr-1" /> Saving...</div>;
     if (status === 'error') return <div className="flex items-center text-red-500 text-[10px] font-medium bg-slate-800 px-2 py-1 rounded-full border border-red-900/50"><CloudOff size={12} className="mr-1" /> Offline</div>;
@@ -173,6 +252,7 @@ const HistoryView = ({ userId, onClose, onLoadGame }) => {
     useEffect(() => {
         const fetchHistory = async () => {
             try {
+                // Using APP_ID constant safely here
                 const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME), where('userId', '==', userId), where('type', '==', 'player'));
                 const querySnapshot = await getDocs(q);
                 const promises = querySnapshot.docs.map(async (playerDoc) => {
@@ -298,7 +378,7 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
     );
 };
 
-const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput, handleJoinGame, courseName, setCourseName, startSetup, error, setShowPortal, setShowHistory, user, handleLogin, handleLogout }) => (
+const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput, handleJoinGame, courseName, setCourseName, startSetup, error, setShowPortal, setShowHistory, user, handleLogin, handleLogout, setShowInfo }) => (
   <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-slate-950 text-white space-y-6">
     <div className="text-center mb-4">
       <div className="mb-2 relative z-10"><img src={CUSTOM_LOGO_URL} alt="Logo" className="w-48 h-48 mx-auto object-contain drop-shadow-2xl filter brightness-110" /></div>
@@ -315,9 +395,10 @@ const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput,
       <div><label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Course / Game Name</label><input type="text" className="w-full bg-slate-800/50 border border-slate-700 rounded-xl p-3 focus:outline-none focus:border-emerald-500 transition-colors text-white" value={courseName} onChange={(e) => setCourseName(e.target.value)} placeholder="e.g. Sunday Medal" /></div>
       <button type="button" onClick={startSetup} disabled={!courseName.trim()} className="w-full bg-emerald-600 hover:bg-emerald-500 py-3 rounded-xl font-bold text-white shadow-lg shadow-emerald-600/20 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100">Setup Game</button>
     </div>
-    <div className="w-full max-w-sm grid grid-cols-2 gap-3">
-        <button onClick={() => setShowPortal(true)} className="bg-slate-900/60 hover:bg-slate-800/80 backdrop-blur-sm border border-white/5 p-4 rounded-xl flex flex-col items-center justify-center group transition-all shadow-lg"><div className="bg-blue-500/20 p-2 rounded-lg text-blue-400 mb-2 group-hover:bg-blue-500 group-hover:text-white transition-colors"><Contact size={20} /></div><div className="font-bold text-xs text-slate-300">Player Portal</div></button>
-        <button onClick={() => setShowHistory(true)} className="bg-slate-900/60 hover:bg-slate-800/80 backdrop-blur-sm border border-white/5 p-4 rounded-xl flex flex-col items-center justify-center group transition-all shadow-lg"><div className="bg-purple-500/20 p-2 rounded-lg text-purple-400 mb-2 group-hover:bg-purple-500 group-hover:text-white transition-colors"><History size={20} /></div><div className="font-bold text-xs text-slate-300">Game History</div></button>
+    <div className="w-full max-w-sm grid grid-cols-3 gap-2">
+        <button onClick={() => setShowPortal(true)} className="bg-slate-900/60 hover:bg-slate-800/80 backdrop-blur-sm border border-white/5 p-3 rounded-xl flex flex-col items-center justify-center group transition-all shadow-lg"><div className="bg-blue-500/20 p-2 rounded-lg text-blue-400 mb-1 group-hover:bg-blue-500 group-hover:text-white transition-colors"><Contact size={18} /></div><div className="font-bold text-[10px] text-slate-300">Players</div></button>
+        <button onClick={() => setShowHistory(true)} className="bg-slate-900/60 hover:bg-slate-800/80 backdrop-blur-sm border border-white/5 p-3 rounded-xl flex flex-col items-center justify-center group transition-all shadow-lg"><div className="bg-purple-500/20 p-2 rounded-lg text-purple-400 mb-1 group-hover:bg-purple-500 group-hover:text-white transition-colors"><History size={18} /></div><div className="font-bold text-[10px] text-slate-300">History</div></button>
+        <button onClick={() => setShowInfo(true)} className="bg-slate-900/60 hover:bg-slate-800/80 backdrop-blur-sm border border-white/5 p-3 rounded-xl flex flex-col items-center justify-center group transition-all shadow-lg"><div className="bg-emerald-500/20 p-2 rounded-lg text-emerald-400 mb-1 group-hover:bg-emerald-500 group-hover:text-white transition-colors"><Info size={18} /></div><div className="font-bold text-[10px] text-slate-300">Info</div></button>
     </div>
     <div className="w-full max-w-sm relative py-2"><div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t border-white/10"></div></div><div className="relative flex justify-center"><span className="bg-black/40 backdrop-blur px-2 text-xs text-slate-400 uppercase tracking-widest rounded">Or Join Existing</span></div></div>
     <div className="w-full max-w-sm bg-slate-900/60 backdrop-blur-md p-6 rounded-2xl border border-white/10 space-y-4 shadow-2xl">
@@ -741,6 +822,7 @@ export default function App() {
   const [showTeeSheet, setShowTeeSheet] = useState(false);
   const [showPortal, setShowPortal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showInfo, setShowInfo] = useState(false); // Added Info state
   
   const [newGuestName, setNewGuestName] = useState('');
   const [newGuestHcp, setNewGuestHcp] = useState('');
@@ -1148,6 +1230,7 @@ export default function App() {
                 setShowPortal={setShowPortal}
                 setShowHistory={setShowHistory}
                 user={user} handleLogin={handleLogin} handleLogout={handleLogout}
+                setShowInfo={setShowInfo}
             />
         )}
         
@@ -1236,6 +1319,11 @@ export default function App() {
         {showHistory && user && (
             <HistoryView userId={user.uid} onClose={() => setShowHistory(false)} onLoadGame={loadHistoricalGame} />
         )}
+        
+        {/* Info Modal */}
+        {showInfo && (
+            <InfoPage onClose={() => setShowInfo(false)} />
+        )}
 
         {/* Tee Sheet Modal */}
         {showTeeSheet && (
@@ -1249,7 +1337,7 @@ export default function App() {
                 newGuestHcp={newGuestHcp} 
                 setNewGuestHcp={setNewGuestHcp} 
                 savedPlayers={savedPlayers} 
-                updatePlayerGroup={updatePlayerGroup} // Added missing prop
+                updatePlayerGroup={updatePlayerGroup} // FIXED: Added missing prop
             />
         )}
 
