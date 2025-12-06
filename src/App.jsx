@@ -80,7 +80,7 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-const APP_VERSION = "v3.5";
+const APP_VERSION = "v3.6";
 const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
 
@@ -256,7 +256,14 @@ const HistoryView = ({ userId, onClose, onLoadGame }) => {
                     const settingsSnap = await getDoc(settingsRef);
                     if (settingsSnap.exists()) {
                         const settings = settingsSnap.data();
-                        return { id: gameId, courseName: settings.courseName, date: settings.createdAt, myScore: playerData.scores, mode: settings.gameMode || 'stroke' };
+                        // Use courseName from settings as the game name
+                        return { 
+                            id: gameId, 
+                            courseName: settings.courseName || `Game ${gameId}`, 
+                            date: settings.createdAt, 
+                            myScore: playerData.scores, 
+                            mode: settings.gameMode || 'stroke' 
+                        };
                     }
                     return null;
                 });
@@ -276,7 +283,14 @@ const HistoryView = ({ userId, onClose, onLoadGame }) => {
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {loading ? <div className="flex justify-center pt-10 text-slate-500"><Activity className="animate-spin" /></div> : history.length === 0 ? <div className="text-center text-slate-500 py-10">No games played yet.</div> : history.map(game => (
                         <button key={game.id} onClick={() => onLoadGame(game.id)} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-4 flex justify-between items-center hover:bg-slate-800 transition text-left group">
-                            <div><div className="font-bold text-white text-lg">{game.courseName}</div><div className="text-xs text-slate-500 flex items-center mt-1"><Calendar size={12} className="mr-1"/> {new Date(game.date).toLocaleDateString()}</div></div>
+                            <div>
+                                {/* DISPLAY GAME NAME PROMINENTLY */}
+                                <div className="font-bold text-white text-lg">{game.courseName}</div>
+                                <div className="text-xs text-slate-500 flex items-center mt-1">
+                                    <Calendar size={12} className="mr-1"/> 
+                                    {new Date(game.date).toLocaleDateString()}
+                                </div>
+                            </div>
                             <div className="text-right"><span className="bg-slate-800 text-slate-300 text-xs px-2 py-1 rounded border border-slate-700 uppercase font-bold group-hover:border-slate-500">View</span></div>
                         </button>
                     ))
