@@ -72,12 +72,11 @@ import {
   Edit,
   Camera,
   Users2,
-  Percent,
-  Hash // For 9/18 Hole Icon
+  Percent
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-const APP_VERSION = "v3.3";
+const APP_VERSION = "v3.4";
 const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
 
@@ -140,15 +139,10 @@ const calculateNetScore = (gross, holeIdx, ch, siList) => {
 const calculateCourseHandicap = (index, slopeVal, ratingVal, parVal, holesMode = '18') => {
     if (!index || index === '') return 0;
     let idx = parseFloat(index);
-    
-    // If playing 9 holes, halve the index for the calculation (Standard WHS practice is roughly half)
-    // OR typically you calculate 18 hole CH then halve it. Let's do full 18 calc then adjust.
     const slp = parseFloat(slopeVal) || 113;
     const rtg = parseFloat(ratingVal) || 72;
     const pr = parseInt(parVal) || 72;
-    
     let ch = Math.round(idx * (slp / 113) + (rtg - pr));
-    
     if (holesMode === 'front9' || holesMode === 'back9') {
         return Math.round(ch / 2);
     }
