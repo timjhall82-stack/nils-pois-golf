@@ -80,7 +80,7 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-const APP_VERSION = "v3.4.1";
+const APP_VERSION = "v3.4.2";
 const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
 
@@ -587,7 +587,7 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                 )}
             </div>
             <div className="space-y-4">
-                <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 space-y-3"><label className="text-xs font-bold text-slate-500 uppercase flex items-center"><BookOpen size={12} className="mr-1"/> Course</label><div className="flex gap-2"><input className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500 w-0" value={courseName} onChange={(e) => setCourseName(e.target.value)} placeholder="Course Name" /><button type="button" onClick={() => setShowBrowser(true)} className="px-3 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors flex-shrink-0"><Globe size={18} /></button></div><select className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-slate-400 focus:outline-none focus:border-emerald-500" onChange={handlePresetChange} defaultValue=""><option value="" disabled>Or select preset...</option><option value="olton_white">Olton GC - White (Men)</option><option value="olton_yellow">Olton GC - Yellow (Men)</option><option value="olton_red">Olton GC - Red (Ladies)</option></select></div>
+                <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 space-y-3"><label className="text-xs font-bold text-slate-500 uppercase flex items-center"><BookOpen size={12} className="mr-1"/> Course</label><div className="flex gap-2"><input className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500 w-0" value={courseName} onChange={(e) => setCourseName(e.target.value)} placeholder="Course Name" /><button type="button" onClick={() => setShowBrowser(true)} className="px-3 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors flex-shrink-0"><Globe size={18} /></button></div><select className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-slate-400 focus:outline-none focus:border-emerald-500" onChange={handlePresetChange} defaultValue=""><option value="" disabled>Or select preset...</option><option value="olton_white">Olton GC - White (Men)</option><option value="olton_yellow">Olton GC - Yellow (Men)</option></select></div>
                 <div className="grid grid-cols-2 gap-4"><div><label className="text-xs font-bold text-slate-500 uppercase">Slope</label><input type="number" className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 focus:border-emerald-500 outline-none transition-colors" value={slope} onChange={(e) => setSlope(e.target.value)} /></div><div><label className="text-xs font-bold text-slate-500 uppercase">Rating</label><input type="number" className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 focus:border-emerald-500 outline-none transition-colors" value={rating} onChange={(e) => setRating(e.target.value)} /></div></div>
                 
                 {/* Holes Mode Toggle */}
