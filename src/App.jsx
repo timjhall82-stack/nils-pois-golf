@@ -80,7 +80,7 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-const APP_VERSION = "v3.4.2";
+const APP_VERSION = "v3.4.2 (Dec 8, 11:26 AM)"; // Updated with timestamp
 const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
 
@@ -128,7 +128,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-
 // --- Helper Functions ---
 const calculateNetScore = (gross, holeIdx, ch, siList) => {
     if (gross === 'NR' || !gross) return 'NR';
