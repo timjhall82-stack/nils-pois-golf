@@ -80,7 +80,7 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-const APP_VERSION = "v3.4.4 (Dec 8th 2025, 15:31PM)";
+const APP_VERSION = "v3.5.1 (Dec 8th 2025, 16:19PM)";
 const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
 
@@ -1268,37 +1268,14 @@ export default function App() {
             teams[p.teeGroup].push(p);
         });
 
-        // 2. Identify Host Team (to compare against)
-        const myTeamId = Object.keys(teams).find(gId => teams[gId].some(m => m.userId === user?.uid));
-
-        // 3. Helper to get a Team's Best Score on a specific hole
-        const getTeamBestNetOnHole = (teamMembers, holeIndex) => {
-            const h = holeIndex + 1;
-            const validNets = teamMembers.map(m => {
-                 const s = m.scores[h];
-                 if (!s || s === 'NR') return 999; // High value for invalid
-                 // Calculate shots received. If 'Diff' mode is on, base it on field lowest.
-                 const baseline = (gameSettings?.useHandicapDiff) ? lowestHcp : 0;
-                 const shots = getShotsOnHole(m.ch - baseline, activeSi[holeIndex]);
-                 return s - shots;
-            }).filter(n => n !== 999);
-            
-            return validNets.length > 0 ? Math.min(...validNets) : 999;
-        };
-
-        // 4. Build Team Results
         const teamResults = Object.keys(teams).map(groupNum => {
             const members = teams[groupNum];
             const teamName = members.map(m => m.playerName.split(' ')[0]).join(' & ');
-            const isUserTeam = (groupNum === myTeamId);
+            const isUserTeam = members.some(m => m.userId === user?.uid);
             
             let teamPoints = 0;
-            let teamGross = 0; // Best gross
+            let teamGross = 0;
             let holesPlayed = 0;
-            
-            // Match Play Logic vs Host Team
-            let myWins = 0;
-            let opWins = 0;
 
             const start = (gameSettings?.holesMode === 'back9') ? 9 : 0;
             const end = (gameSettings?.holesMode === 'front9') ? 9 : 18;
@@ -1306,51 +1283,21 @@ export default function App() {
             for(let i=start; i<end; i++) {
                 const h = i + 1;
                 const holePar = activePars[i];
-                
-                // --- Basic Scoring (Stableford/Stroke) ---
-                // Calculate points for every member, take best
-                const memberPts = members.map(m => {
-                     // Re-calc net here for stableford points
-                     const net = m.netScores[h];
-                     return (net !== 'NR' && net !== undefined) ? Math.max(0, holePar - net + 2) : 0;
-                });
-                if (members.some(m => m.scores[h])) {
+                const holeScores = members.map(m => ({
+                    gross: m.scores[h],
+                    net: m.netScores[h],
+                    pts: (m.netScores[h] !== 'NR' && m.netScores[h] !== undefined) ? Math.max(0, holePar - m.netScores[h] + 2) : 0
+                }));
+
+                if (holeScores.some(hs => hs.gross !== undefined)) {
                     holesPlayed++;
-                    teamPoints += Math.max(...memberPts);
-                    
-                    // Best Gross for display
-                    const validGross = members.map(m => m.scores[h]).filter(s => s && s !== 'NR');
-                    if(validGross.length > 0) teamGross += Math.min(...validGross);
-                }
-
-                // --- Match Play Logic ---
-                if (activeGameMode === 'match' && myTeamId && !isUserTeam) {
-                    // Get My Team's Best Net
-                    const myBest = getTeamBestNetOnHole(teams[myTeamId], i);
-                    // Get Opponent Team's Best Net
-                    const opBest = getTeamBestNetOnHole(members, i);
-
-                    if (myBest !== 999 && opBest !== 999) {
-                        if (myBest < opBest) myWins++;
-                        else if (opBest < myBest) opWins++;
-                    } else if (myBest === 999 && opBest !== 999) {
-                        opWins++; // Opponent wins if I NR
-                    } else if (myBest !== 999 && opBest === 999) {
-                        myWins++; // I win if Opponent NRs
-                    }
+                    const bestPts = Math.max(...holeScores.map(hs => hs.pts));
+                    teamPoints += bestPts;
+                    const validGross = holeScores.map(hs => hs.gross).filter(g => g !== 'NR' && g !== undefined);
+                     if (validGross.length > 0) { teamGross += Math.min(...validGross); }
                 }
             }
             
-            // Calc Match Status String
-            let matchStatus = '-';
-            if (activeGameMode === 'match' && !isUserTeam && myTeamId) {
-                const diff = myWins - opWins;
-                if (diff === 0) matchStatus = "AS";
-                else if (diff > 0) matchStatus = `${diff} DN`; // From perspective of Opponent vs Me
-                else matchStatus = `${Math.abs(diff)} UP`;
-            }
-
-            // Calc Gross To Par
             let parTotal = 0;
             for(let i=start; i<end; i++) { if(members[0].scores[i+1]) parTotal += activePars[i]; }
             const grossToPar = teamGross - parTotal;
@@ -1359,8 +1306,7 @@ export default function App() {
                 id: groupNum, name: teamName, isUser: isUserTeam,
                 holesPlayed, totalPoints: teamPoints, netTotal: 0, grossToPar,
                 displayScore: holesPlayed === 0 ? 'E' : (grossToPar > 0 ? `+${grossToPar}` : grossToPar),
-                matchStatus: matchStatus, 
-                skinsWon: 0 // Skins logic for pairs can be added similarly if needed
+                matchStatus: '-', skinsWon: 0
             };
         });
 
