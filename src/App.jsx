@@ -76,11 +76,12 @@ import {
   Info,
   HelpCircle,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  TableProperties // Icon for Scorecard
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-const APP_VERSION = "v3.5.1 (Dec 8th 2025, 16:19PM)";
+const APP_VERSION = "v3.6.3";
 const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
 
@@ -88,8 +89,8 @@ const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5c
 const APP_ID = "nils-pois-golf-v5"; 
 const COLLECTION_NAME = 'golf_scores';
 
-const DEFAULT_PARS = [4, 4, 3, 4, 4, 5, 4, 3, 5, 4, 4, 3, 5, 4, 4, 3, 5, 4];
-const DEFAULT_SI = [1, 3, 5, 7, 9, 11, 13, 15, 17, 2, 4, 6, 8, 10, 12, 14, 16, 18]; 
+const DEFAULT_PARS = [4, 4, 4, 4, 3, 4, 4, 3, 4, 4, 5, 4, 3, 4, 3, 4, 4, 5];
+const DEFAULT_SI = [5, 3, 17, 11, 7, 9, 1, 15, 13, 4, 10, 16, 18, 2, 12, 6, 14, 8]; 
 
 const PRESET_COURSES = {
   'olton_white': {
@@ -263,7 +264,13 @@ const HistoryView = ({ userId, onClose, onLoadGame }) => {
                     const settingsSnap = await getDoc(settingsRef);
                     if (settingsSnap.exists()) {
                         const settings = settingsSnap.data();
-                        return { id: gameId, courseName: settings.courseName, date: settings.createdAt, myScore: playerData.scores, mode: settings.gameMode || 'stroke' };
+                        return { 
+                            id: gameId, 
+                            courseName: settings.courseName || `Game ${gameId}`, 
+                            date: settings.createdAt, 
+                            myScore: playerData.scores, 
+                            mode: settings.gameMode || 'stroke' 
+                        };
                     }
                     return null;
                 });
@@ -283,7 +290,14 @@ const HistoryView = ({ userId, onClose, onLoadGame }) => {
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {loading ? <div className="flex justify-center pt-10 text-slate-500"><Activity className="animate-spin" /></div> : history.length === 0 ? <div className="text-center text-slate-500 py-10">No games played yet.</div> : history.map(game => (
                         <button key={game.id} onClick={() => onLoadGame(game.id)} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-4 flex justify-between items-center hover:bg-slate-800 transition text-left group">
-                            <div><div className="font-bold text-white text-lg">{game.courseName}</div><div className="text-xs text-slate-500 flex items-center mt-1"><Calendar size={12} className="mr-1"/> {new Date(game.date).toLocaleDateString()}</div></div>
+                            <div>
+                                {/* DISPLAY GAME NAME PROMINENTLY */}
+                                <div className="font-bold text-white text-lg">{game.courseName}</div>
+                                <div className="text-xs text-slate-500 flex items-center mt-1">
+                                    <Calendar size={12} className="mr-1"/> 
+                                    {new Date(game.date).toLocaleDateString()}
+                                </div>
+                            </div>
                             <div className="text-right"><span className="bg-slate-800 text-slate-300 text-xs px-2 py-1 rounded border border-slate-700 uppercase font-bold group-hover:border-slate-500">View</span></div>
                         </button>
                     ))
@@ -804,10 +818,89 @@ const LeaderboardView = ({ leaderboardData, user, activeGameMode, teamMode, game
           </div>
           {teamMode === 'pairs' && <div className="p-2 text-[10px] text-center text-emerald-500 bg-slate-950 font-bold">Better Ball Format Active</div>}
           {activeGameMode === 'match' && <div className="p-2 text-[10px] text-center text-slate-500 bg-slate-950">Match status vs {teamMode === 'pairs' ? 'Host Team' : 'YOU'} {gameSettings?.useHandicapDiff ? '(Diff)' : '(Full)'}</div>}
-          {activeGameMode === 'skins' && <div className="p-2 text-[10px] text-center text-slate-500 bg-slate-950">Skins {gameSettings?.useHandicapDiff ? 'off Lowest' : 'Full Hcp'}</div>}
+          {activeGameMode === 'skins' && <div className="p-2 text-[10px] text-center text-slate-500 bg-slate-950">Skins {gameSettings?.useHandicapDiff ? 'off Lowest' : 'Full Hcp'} (Carry Overs Active)</div>}
       </div>
   </div>
 );
+
+const ScorecardView = ({ players, activePars, holesMode }) => {
+    // Determine hole range
+    const startHole = holesMode === 'back9' ? 10 : 1;
+    const endHole = holesMode === 'front9' ? 9 : 18;
+    const holes = [];
+    for (let i = startHole; i <= endHole; i++) holes.push(i);
+
+    return (
+        <div className="flex flex-col h-full animate-in slide-in-from-bottom duration-300 bg-slate-950">
+            <div className="overflow-x-auto flex-1 pb-4">
+                <table className="w-full text-xs text-left text-slate-400 border-collapse">
+                    <thead className="text-[10px] uppercase bg-slate-900 sticky top-0 z-10">
+                        <tr>
+                            <th className="px-2 py-3 font-bold text-white border-b border-slate-700 sticky left-0 bg-slate-900 z-20 min-w-[80px]">Player</th>
+                            {holes.map(h => (
+                                <th key={h} className="px-1 py-3 text-center border-b border-slate-700 min-w-[30px] border-l border-slate-800">
+                                    <div>{h}</div>
+                                    <div className="text-[8px] text-slate-500">{activePars[h-1]}</div>
+                                </th>
+                            ))}
+                            <th className="px-2 py-3 text-center border-b border-slate-700 font-bold text-white border-l border-slate-800">Tot</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {players.map((p, idx) => {
+                            let totalGross = 0;
+                            return (
+                                <tr key={p.id} className={idx % 2 === 0 ? 'bg-slate-900/30' : 'bg-transparent'}>
+                                    <td className="px-2 py-3 font-medium text-white border-b border-slate-800 sticky left-0 bg-slate-950 z-10 truncate max-w-[80px]">
+                                        {p.playerName.split(' ')[0]}
+                                    </td>
+                                    {holes.map(h => {
+                                        const score = p.scores?.[h];
+                                        const par = activePars[h-1];
+                                        let cellClass = "";
+                                        let textClass = "text-slate-300";
+
+                                        if (score && score !== 'NR') {
+                                            totalGross += score;
+                                            const diff = score - par;
+                                            if (diff < 0) { // Birdie or better
+                                                cellClass = "bg-blue-500/20";
+                                                textClass = "text-blue-400 font-bold";
+                                            } else if (diff === 0) { // Par
+                                                textClass = "text-white font-bold";
+                                            } else if (diff === 1) { // Bogey
+                                                 cellClass = "bg-red-500/10";
+                                                 textClass = "text-red-400";
+                                            } else { // Double or worse
+                                                 cellClass = "bg-orange-500/10";
+                                                 textClass = "text-orange-500";
+                                            }
+                                        }
+
+                                        return (
+                                            <td key={h} className={`px-1 py-3 text-center border-b border-slate-800 border-l border-slate-800 ${cellClass}`}>
+                                                <span className={textClass}>{score === 'NR' ? '-' : (score || '-')}</span>
+                                            </td>
+                                        );
+                                    })}
+                                    <td className="px-2 py-3 text-center font-bold text-emerald-400 border-b border-slate-800 border-l border-slate-800">
+                                        {totalGross > 0 ? (totalGross - (activePars.slice(startHole-1, endHole).reduce((a,b)=>a+b,0) || 0) > 0 ? `+${totalGross - activePars.slice(startHole-1, endHole).reduce((a,b)=>a+b,0)}` : totalGross - activePars.slice(startHole-1, endHole).reduce((a,b)=>a+b,0)) : '-'}
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+             <div className="p-2 text-[10px] text-center text-slate-500 bg-slate-950 border-t border-slate-800">
+                <span className="mr-3"><span className="text-blue-400">●</span> Birdie</span>
+                <span className="mr-3"><span className="text-white">●</span> Par</span>
+                <span className="mr-3"><span className="text-red-400">●</span> Bogey</span>
+                <span><span className="text-orange-500">●</span> Double+</span>
+            </div>
+        </div>
+    );
+};
 
 const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestName, setNewGuestName, newGuestHcp, setNewGuestHcp, savedPlayers, updatePlayerGroup }) => {
     const [targetGroupSize, setTargetGroupSize] = useState(4);
@@ -1368,7 +1461,7 @@ export default function App() {
             />
         )}
 
-        {(view === 'score' || view === 'leaderboard') && (
+        {(view === 'score' || view === 'leaderboard' || view === 'card') && (
             <>
                 <header className="bg-slate-900/80 backdrop-blur border-b border-slate-800 h-14 flex items-center justify-between px-4 z-30 sticky top-0">
                     <div className="flex items-center space-x-2">
@@ -1392,7 +1485,7 @@ export default function App() {
                 </header>
 
                 <main className="flex-1 p-4 max-w-lg mx-auto w-full overflow-hidden flex flex-col">
-                    {view === 'score' ? (
+                    {view === 'score' && (
                         <ScoreView 
                             currentHole={currentHole} setCurrentHole={setCurrentHole}
                             currentHoleScore={currentHoleScore} updateScore={updateScore}
@@ -1405,8 +1498,18 @@ export default function App() {
                             teamMode={gameSettings?.teamMode || 'singles'}
                             gameSettings={gameSettings}
                         />
-                    ) : (
+                    )}
+                    
+                    {view === 'leaderboard' && (
                         <LeaderboardView leaderboardData={leaderboardData} user={user} activeGameMode={activeGameMode} teamMode={gameSettings?.teamMode || 'singles'} gameSettings={gameSettings} />
+                    )}
+
+                    {view === 'card' && (
+                        <ScorecardView 
+                            players={players} 
+                            activePars={activePars} 
+                            holesMode={gameSettings?.holesMode || '18'} 
+                        />
                     )}
                     
                     <div className="mt-2 flex justify-between items-center px-1">
@@ -1415,9 +1518,10 @@ export default function App() {
                 </main>
 
                 <nav className="bg-slate-900 border-t border-slate-800 h-16 pb-2 z-20">
-                    <div className="flex justify-around items-center h-full">
+                    <div className="flex justify-around items-center h-full px-2 gap-2">
                         <button onClick={() => setView('score')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${view === 'score' ? 'text-emerald-500' : 'text-slate-600'}`}><Activity size={20} /><span className="text-[10px] font-bold uppercase">Score</span></button>
                         <button onClick={() => setView('leaderboard')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${view === 'leaderboard' ? 'text-blue-500' : 'text-slate-600'}`}><Trophy size={20} /><span className="text-[10px] font-bold uppercase">Leaderboard</span></button>
+                        <button onClick={() => setView('card')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${view === 'card' ? 'text-purple-500' : 'text-slate-600'}`}><TableProperties size={20} /><span className="text-[10px] font-bold uppercase">Card</span></button>
                     </div>
                 </nav>
             </>
