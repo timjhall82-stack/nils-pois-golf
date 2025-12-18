@@ -77,13 +77,16 @@ import {
   HelpCircle,
   ChevronDown,
   ChevronUp,
-  TableProperties
+  TableProperties // Icon for Scorecard
 } from 'lucide-react';
-const APP_VERSION = "v3.7.4 (Logo Update)";
-const APP_ID = "nils-pois-golf-v5";
+
+// --- CONFIGURATION & CONSTANTS ---
+const APP_VERSION = "v3.6.3 (Dec 13th 2025, 09:40AM)";
 const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
 
+// ⚠️ DATA NAMESPACE: Do not change this or you lose access to saved data
+const APP_ID = "nils-pois-golf-v5"; 
 const COLLECTION_NAME = 'golf_scores';
 
 const DEFAULT_PARS = [4, 4, 4, 4, 3, 4, 4, 3, 4, 4, 5, 4, 3, 4, 3, 4, 4, 5];
@@ -104,47 +107,12 @@ const PRESET_COURSES = {
     pars: [4, 4, 4, 4, 3, 4, 4, 3, 4, 4, 5, 4, 3, 4, 3, 4, 4, 5], 
     si:   [5, 3, 17, 11, 7, 9, 1, 15, 13, 4, 10, 16, 18, 2, 12, 6, 14, 8]
   },
-  'fairhaven_white': {
-    name: "Fairhaven GC (White)",
-    slope: 135,
-    rating: 73.6,
-    pars: [5, 3, 5, 4, 3, 4, 4, 4, 4, 3, 5, 4, 4, 4, 5, 4, 3, 5],
-    si:   [10, 8, 14, 2, 6, 16, 18, 4, 12, 9, 15, 7, 5, 13, 1, 3, 17, 11]
-  },
-  'fairhaven_yellow': {
-    name: "Fairhaven GC (Yellow)",
-    slope: 130,
-    rating: 71.6,
-    pars: [5, 3, 5, 4, 3, 4, 4, 4, 4, 3, 5, 4, 4, 4, 5, 4, 3, 5],
-    si:   [10, 8, 14, 2, 6, 16, 18, 4, 12, 9, 15, 7, 5, 13, 1, 3, 17, 11]
-  },
-  'moorpark_high_white': {
-    name: "Moor Park - High (White)",
-    slope: 139,
-    rating: 73.3,
-    pars: [4, 4, 3, 4, 4, 5, 4, 4, 5, 3, 4, 3, 5, 4, 4, 5, 4, 3],
-    si:   [7, 3, 15, 5, 9, 11, 13, 1, 17, 18, 8, 4, 12, 2, 6, 16, 10, 14]
-  },
-  'moorpark_high_yellow': {
-    name: "Moor Park - High (Yellow)",
-    slope: 138,
-    rating: 71.9,
-    pars: [4, 4, 3, 4, 4, 5, 4, 4, 5, 3, 4, 3, 5, 4, 4, 5, 4, 3],
-    si:   [7, 3, 15, 5, 9, 11, 13, 1, 17, 18, 8, 4, 12, 2, 6, 16, 10, 14]
-  },
-  'moorpark_west_white': {
-    name: "Moor Park - West (White)",
-    slope: 121,
-    rating: 69.8,
-    pars: [4, 3, 4, 3, 4, 3, 4, 4, 3, 4, 4, 5, 3, 5, 4, 4, 4, 4],
-    si:   [11, 9, 5, 15, 3, 17, 1, 7, 13, 14, 6, 12, 16, 4, 2, 8, 10, 18]
-  },
-  'moorpark_west_red': {
-    name: "Moor Park - West (Ladies)",
-    slope: 120,
-    rating: 70.2,
-    pars: [4, 3, 4, 3, 5, 3, 5, 4, 3, 3, 4, 5, 3, 5, 4, 4, 4, 4],
-    si:   [11, 13, 3, 15, 7, 17, 5, 1, 9, 4, 10, 12, 16, 8, 2, 6, 14, 18]
+  'olton_red': {
+    name: "Olton GC (Red)",
+    slope: 136,
+    rating: 73.7,
+    pars: [5, 4, 4, 4, 3, 4, 5, 3, 4, 4, 5, 4, 3, 5, 3, 4, 4, 5], 
+    si:   [11, 3, 13, 1, 15, 9, 5, 17, 7, 4, 14, 12, 18, 6, 10]
   }
 };
 
@@ -258,6 +226,15 @@ const InfoPage = ({ onClose }) => {
                     <p className="mb-2"><strong>Important:</strong> You must assign players to <strong>Tee Groups</strong> (Grp 1, Grp 2) using the <Users size={12} className="inline"/> button inside the game.</p>
                     <p>The leaderboard will show the <strong>Best Net Score</strong> from the pair for each hole.</p>
                 </FAQItem>
+
+                <FAQItem title="Handicap Calculations" id="hcp">
+                    <p className="mb-2"><strong>Full:</strong> Everyone plays off their full Course Handicap.</p>
+                    <p><strong>Difference:</strong> In Match/Skins, the lowest handicap player plays off 0. Everyone else receives shots = (Their Hcp - Lowest Hcp).</p>
+                </FAQItem>
+
+                <FAQItem title="App Installation" id="install">
+                    <p>For the best experience, tap the <strong>Share</strong> button on your browser and select <strong>"Add to Home Screen"</strong>. This removes the address bar and makes it run like a native app.</p>
+                </FAQItem>
             </div>
         </div>
     );
@@ -276,13 +253,14 @@ const HistoryView = ({ userId, onClose, onLoadGame }) => {
     useEffect(() => {
         const fetchHistory = async () => {
             try {
-                const q = query(collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME), where('userId', '==', userId), where('type', '==', 'player'));
+                // Using APP_ID constant safely here
+                const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME), where('userId', '==', userId), where('type', '==', 'player'));
                 const querySnapshot = await getDocs(q);
                 const promises = querySnapshot.docs.map(async (playerDoc) => {
                     const playerData = playerDoc.data();
                     const gameId = playerData.gameId;
                     if (!gameId) return null;
-                    const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, `SETTINGS_${gameId}`);
+                    const settingsRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, `SETTINGS_${gameId}`);
                     const settingsSnap = await getDoc(settingsRef);
                     if (settingsSnap.exists()) {
                         const settings = settingsSnap.data();
@@ -313,6 +291,7 @@ const HistoryView = ({ userId, onClose, onLoadGame }) => {
                 {loading ? <div className="flex justify-center pt-10 text-slate-500"><Activity className="animate-spin" /></div> : history.length === 0 ? <div className="text-center text-slate-500 py-10">No games played yet.</div> : history.map(game => (
                         <button key={game.id} onClick={() => onLoadGame(game.id)} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-4 flex justify-between items-center hover:bg-slate-800 transition text-left group">
                             <div>
+                                {/* DISPLAY GAME NAME PROMINENTLY */}
                                 <div className="font-bold text-white text-lg">{game.courseName}</div>
                                 <div className="text-xs text-slate-500 flex items-center mt-1">
                                     <Calendar size={12} className="mr-1"/> 
@@ -367,11 +346,11 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
         try {
             const playerData = { name: name, handicap: hcp || 0, avatarUrl: imgUrl, createdAt: new Date().toISOString() };
             if (editingId) {
-                const playerRef = doc(db, 'artifacts', appId, 'users', userId, 'saved_players', editingId);
+                const playerRef = doc(db, 'artifacts', APP_ID, 'users', userId, 'saved_players', editingId);
                 await updateDoc(playerRef, { name: name, handicap: hcp || 0, avatarUrl: imgUrl });
                 setEditingId(null);
             } else {
-                const playersRef = collection(db, 'artifacts', appId, 'users', userId, 'saved_players');
+                const playersRef = collection(db, 'artifacts', APP_ID, 'users', userId, 'saved_players');
                 await addDoc(playersRef, playerData);
             }
             setName(''); setHcp(''); setImgUrl('');
@@ -381,7 +360,7 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
     const handleEdit = (player) => { setName(player.name); setHcp(player.handicap); setImgUrl(player.avatarUrl || ''); setEditingId(player.id); };
     const handleCancelEdit = () => { setName(''); setHcp(''); setImgUrl(''); setEditingId(null); };
     const handleDelete = async (id) => {
-        if (confirm("Remove player from portal?")) { try { await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'saved_players', id)); } catch (err) { alert("Error deleting: " + err.message); } }
+        if (confirm("Remove player from portal?")) { try { await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', userId, 'saved_players', id)); } catch (err) { alert("Error deleting: " + err.message); } }
     };
 
     return (
@@ -416,9 +395,9 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
 const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput, handleJoinGame, courseName, setCourseName, startSetup, error, setShowPortal, setShowHistory, user, handleLogin, handleLogout, setShowInfo, savedPlayers }) => (
   <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-slate-950 text-white space-y-6">
     <div className="text-center mb-4">
-      <div className="mb-2 relative z-10"><Trophy className="w-32 h-32 mx-auto text-yellow-500 drop-shadow-2xl" /></div>
-      <h1 className="text-4xl font-black tracking-tighter text-white drop-shadow-lg">Golf Scorer</h1>
-      <p className="text-emerald-400 text-xs font-bold tracking-widest uppercase">&copy; 2025</p>
+      <div className="mb-2 relative z-10"><img src={CUSTOM_LOGO_URL} alt="Logo" className="w-48 h-48 mx-auto object-contain drop-shadow-2xl filter brightness-110" /></div>
+      <h1 className="text-4xl font-black tracking-tighter text-white drop-shadow-lg">Nils Pois Golf</h1>
+      <p className="text-emerald-400 text-xs font-bold tracking-widest uppercase">&copy; 2025 Timah</p>
     </div>
     <div className="w-full max-w-sm bg-slate-900/60 backdrop-blur-md rounded-xl border border-white/10 p-3 flex justify-between items-center shadow-2xl">
         <div className="flex items-center"><div className="bg-slate-800 p-2 rounded-full text-slate-400 mr-3"><User size={16} /></div><div><div className="text-xs font-bold text-slate-300">{user?.isAnonymous ? 'Guest User' : (user?.displayName || (user?.email ? user.email.split('@')[0] : 'Golfer'))}</div><div className="text-[10px] text-slate-500">{user?.isAnonymous ? 'Data not saved' : (user?.email || 'Account Synced')}</div></div></div>
@@ -515,17 +494,7 @@ const CourseBrowser = ({ onClose, onSelectCourse }) => {
                     }
                 });
             }
-            // Auto-populate slope/rating from tee object if available
-            // Default to 113/72 if not found
-            const slope = tee.slope || 113;
-            const rating = tee.rating || 72;
-            onSelectCourse({ 
-                name: `${selectedClub.name} - ${tee.colour}`, 
-                pars, 
-                si, 
-                slope, 
-                rating 
-            });
+            onSelectCourse({ name: `${selectedClub.name} - ${tee.colour}`, pars, si, slope: 113, rating: 72 });
             onClose();
         } catch (e) { alert("Could not load data."); } finally { setLoading(false); }
     };
@@ -648,7 +617,7 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                 )}
             </div>
             <div className="space-y-4">
-                <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 space-y-3"><label className="text-xs font-bold text-slate-500 uppercase flex items-center"><BookOpen size={12} className="mr-1"/> Course</label><div className="flex gap-2"><input className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500 w-0" value={courseName} onChange={(e) => setCourseName(e.target.value)} placeholder="Course Name" /><button type="button" onClick={() => setShowBrowser(true)} className="px-3 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors flex-shrink-0"><Globe size={18} /></button></div><select className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-slate-400 focus:outline-none focus:border-emerald-500" onChange={handlePresetChange} defaultValue=""><option value="" disabled>Or select preset...</option><option value="olton_white">Olton GC - White (Men)</option><option value="olton_yellow">Olton GC - Yellow (Men)</option><option value="fairhaven_white">Fairhaven GC - White</option><option value="fairhaven_yellow">Fairhaven GC - Yellow</option><option value="moorpark_high_white">Moor Park - High (White)</option><option value="moorpark_high_yellow">Moor Park - High (Yellow)</option><option value="moorpark_west_white">Moor Park - West (White)</option><option value="moorpark_west_yellow">Moor Park - West (Yellow)</option></select></div>
+                <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 space-y-3"><label className="text-xs font-bold text-slate-500 uppercase flex items-center"><BookOpen size={12} className="mr-1"/> Course</label><div className="flex gap-2"><input className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500 w-0" value={courseName} onChange={(e) => setCourseName(e.target.value)} placeholder="Course Name" /><button type="button" onClick={() => setShowBrowser(true)} className="px-3 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors flex-shrink-0"><Globe size={18} /></button></div><select className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-slate-400 focus:outline-none focus:border-emerald-500" onChange={handlePresetChange} defaultValue=""><option value="" disabled>Or select preset...</option><option value="olton_white">Olton GC - White (Men)</option><option value="olton_yellow">Olton GC - Yellow (Men)</option><option value="olton_red">Olton GC - Red (Ladies)</option></select></div>
                 <div className="grid grid-cols-2 gap-4"><div><label className="text-xs font-bold text-slate-500 uppercase">Slope</label><input type="number" className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 focus:border-emerald-500 outline-none transition-colors" value={slope} onChange={(e) => setSlope(e.target.value)} /></div><div><label className="text-xs font-bold text-slate-500 uppercase">Rating</label><input type="number" className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 focus:border-emerald-500 outline-none transition-colors" value={rating} onChange={(e) => setRating(e.target.value)} /></div></div>
                 
                 {/* Holes Mode Toggle */}
@@ -1097,7 +1066,7 @@ export default function App() {
 
   useEffect(() => {
       if (!user) return;
-      const q = query(collection(db, 'artifacts', appId, 'users', user.uid, 'saved_players'));
+      const q = query(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'saved_players'));
       const unsubscribe = onSnapshot(q, (snapshot) => { 
           const sp = []; 
           snapshot.forEach(doc => sp.push({id: doc.id, ...doc.data()})); 
@@ -1110,7 +1079,7 @@ export default function App() {
   useEffect(() => {
     if (!user || !gameId) return;
     setLoading(true);
-    const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, `SETTINGS_${gameId}`);
+    const settingsRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, `SETTINGS_${gameId}`);
     const unsubSettings = onSnapshot(settingsRef, (docSnap) => {
         if (docSnap.exists()) { 
             const s = docSnap.data();
@@ -1119,7 +1088,7 @@ export default function App() {
         } 
         setLoading(false);
     }, (err) => console.error(err));
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME), where('gameId', '==', gameId.toUpperCase()), where('type', '==', 'player'));
+    const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME), where('gameId', '==', gameId.toUpperCase()), where('type', '==', 'player'));
     const unsubPlayers = onSnapshot(q, (snapshot) => { const playerData = []; snapshot.forEach((doc) => { playerData.push({ id: doc.id, ...doc.data() }); }); setPlayers(playerData); }, (err) => console.error(err));
     return () => { unsubSettings(); unsubPlayers(); };
   }, [user, gameId]);
@@ -1132,7 +1101,7 @@ export default function App() {
       const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
       const settingsId = `SETTINGS_${newCode}`;
       const totalPar = pars.reduce((a, b) => a + b, 0);
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, settingsId), { 
+      await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, settingsId), { 
           courseName, slope, rating, pars, si, totalPar, gameMode, teamMode, useHandicapDiff, holesMode,
           createdAt: new Date().toISOString() 
       });
@@ -1141,7 +1110,7 @@ export default function App() {
           const batch = writeBatch(db);
           friendsToAdd.forEach(friend => {
               const guestId = `guest_${Math.random().toString(36).substring(2, 9)}`;
-              const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, `${newCode}_${guestId}`);
+              const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, `${newCode}_${guestId}`);
               // Calculate CH based on 9/18 selection
               const ch = calculateCourseHandicap(friend.handicap, slope, rating, totalPar, holesMode);
               batch.set(docRef, { 
@@ -1164,7 +1133,7 @@ export default function App() {
   const handleJoinGame = async () => {
     if (!playerName.trim() || !joinCodeInput.trim()) { setError("Name and Code required"); return; }
     const code = joinCodeInput.toUpperCase();
-    const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, `SETTINGS_${code}`);
+    const settingsRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, `SETTINGS_${code}`);
     const snap = await getDoc(settingsRef);
     if (!snap.exists()) { setError("Game code not found"); return; }
     const settings = snap.data();
@@ -1179,7 +1148,7 @@ export default function App() {
     localStorage.setItem('golf_player_hcp', handicapIndex);
     const ch = calculateCourseHandicap(handicapIndex, cSlope, cRating, cTotalPar, hMode);
     const playerDocId = `${code}_${user.uid}`;
-    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, playerDocId), { 
+    await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, playerDocId), { 
         gameId: code, 
         userId: user.uid, 
         playerName: playerName, 
@@ -1200,12 +1169,12 @@ export default function App() {
     const targetPlayer = players.find(p => p.userId === targetUserId) || {};
     const currentScores = targetPlayer.scores || {};
     const newScores = { ...currentScores, [hole]: strokes };
-    try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, playerDocId), { scores: newScores }, { merge: true }); setSyncStatus('saved'); } catch (e) { console.error("Sync error:", e); setSyncStatus('error'); }
+    try { await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, playerDocId), { scores: newScores }, { merge: true }); setSyncStatus('saved'); } catch (e) { console.error("Sync error:", e); setSyncStatus('error'); }
   };
 
   const updatePlayerGroup = async (playerId, groupNum) => {
       if (!playerId) return;
-      const playerDoc = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, playerId);
+      const playerDoc = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, playerId);
       try {
           await updateDoc(playerDoc, { teeGroup: groupNum });
       } catch(e) { console.error("Group update failed", e); }
@@ -1219,7 +1188,7 @@ export default function App() {
       if (!newGuestName.trim()) return;
       if (!gameId) return;
       const guestId = `guest_${Math.random().toString(36).substring(2, 9)}`;
-      const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, `${gameId}_${guestId}`);
+      const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, `${gameId}_${guestId}`);
       const cSettings = gameSettings || {};
       const ch = calculateCourseHandicap(newGuestHcp, cSettings.slope, cSettings.rating, cSettings.totalPar, cSettings.holesMode);
       await setDoc(docRef, { 
@@ -1242,7 +1211,7 @@ export default function App() {
       const shuffled = [...players];
       for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
       const batch = writeBatch(db);
-      shuffled.forEach((p, index) => { const groupNum = Math.floor(index / groupSize) + 1; const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, p.id); batch.update(docRef, { teeGroup: groupNum }); });
+      shuffled.forEach((p, index) => { const groupNum = Math.floor(index / groupSize) + 1; const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, p.id); batch.update(docRef, { teeGroup: groupNum }); });
       await batch.commit();
   };
   
@@ -1467,7 +1436,7 @@ export default function App() {
                 setShowHistory={setShowHistory}
                 user={user} handleLogin={handleLogin} handleLogout={handleLogout}
                 setShowInfo={setShowInfo}
-                savedPlayers={savedPlayers} 
+                savedPlayers={savedPlayers} // Pass Saved Players to Lobby for Dropdown
             />
         )}
         
@@ -1585,7 +1554,7 @@ export default function App() {
                 newGuestHcp={newGuestHcp} 
                 setNewGuestHcp={setNewGuestHcp} 
                 savedPlayers={savedPlayers} 
-                updatePlayerGroup={updatePlayerGroup} 
+                updatePlayerGroup={updatePlayerGroup} // FIXED: Added missing prop
             />
         )}
 
