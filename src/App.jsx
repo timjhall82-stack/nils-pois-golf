@@ -79,10 +79,13 @@ import {
   ChevronUp,
   TableProperties
 } from 'lucide-react';
+
+// --- CONFIGURATION & CONSTANTS ---
 const APP_VERSION = "v3.7.4 (Logo Update)";
 const APP_ID = "nils-pois-golf-v5";
-const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
+// Add a placeholder golf logo (you can replace this URL with your specific logo)
+const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
 
 const COLLECTION_NAME = 'golf_scores';
 
