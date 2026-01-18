@@ -9,7 +9,7 @@ import {
   signInWithPopup,
   linkWithPopup,
   signOut,
-  setPersistence
+  setPersistence,
   // browserLocalPersistence removed to prevent build issues
 } from 'firebase/auth';
 import { 
@@ -81,7 +81,7 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-const APP_VERSION = "v3.8.6 (Reverted Card View)";
+const APP_VERSION = "v3.8.7 (Fix Errors)";
 // Note: Local images like "/NilsPoisGolfInAppLogo.png" won't load in this preview. 
 // I've kept the remote URL as a fallback so you can see the UI.
 const CUSTOM_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/1165/1165187.png"; 
@@ -187,6 +187,7 @@ const PRESET_COURSES = {
 const getFirebaseConfig = () => {
   try {
     // 1. Check for global window variable (sometimes used in specific builds)
+    // Use bracket notation to avoid TS/JS syntax issues with 'window as any' in standard JS files
     if (typeof window !== 'undefined' && window['__firebase_config']) {
       return JSON.parse(window['__firebase_config']);
     }
@@ -707,7 +708,7 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                     <div className="space-y-1">
                         <div className="text-[10px] text-slate-500 uppercase font-bold">From Portal</div>
                         <div className="max-h-32 overflow-y-auto pr-1">
-                            {savedPlayers.map((p: any) => (
+                            {savedPlayers.map(p => (
                                 <button type="button" key={p.id} onClick={() => toggleFriend(p.id)} className={`w-full flex items-center justify-between p-2 rounded-lg border text-xs mb-1 transition-all ${selectedFriends.has(p.id) ? 'bg-emerald-600/20 border-emerald-600 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'}`}>
                                     <div className="flex items-center gap-2 overflow-hidden">
                                         {p.avatarUrl && <img src={p.avatarUrl} className="w-6 h-6 rounded-full object-cover" />}
@@ -1020,22 +1021,38 @@ const ScorecardView = ({ players, activePars, holesMode, activeGameMode, activeS
                     <tbody>
                         {players.map((p: any, idx: number) => {
                             let totalGross = 0;
+                            // let totalPoints = 0; // Removed points variable
                             
                             return (
                                 <tr key={p.id} className={idx % 2 === 0 ? 'bg-slate-900/30' : 'bg-transparent'}>
                                     <td className="px-2 py-3 font-medium text-white border-b border-slate-800 sticky left-0 bg-slate-950 z-10 truncate max-w-[80px]">
                                         {p.playerName.split(' ')[0]}
+                                        <div className="text-[8px] text-slate-500 font-mono">CH: {p.courseHandicap}</div>
                                     </td>
                                     {holes.map(h => {
                                         const score = p.scores?.[h];
                                         const par = activePars[h-1];
+                                        // Use passed activeSi or default if missing
+                                        const si = activeSi ? activeSi[h-1] : h; 
                                         
                                         let cellClass = "";
                                         let textClass = "text-slate-300";
+                                        let displayValue: any = "-";
+                                        // let points = 0; // Removed per user request
 
                                         if (score && score !== 'NR') {
                                             totalGross += score;
                                             const diff = score - par;
+
+                                            // REMOVED STABLEFORD CALCULATION FOR CARD
+                                            /*
+                                            const netScore = calculateNetScore(score, h-1, p.courseHandicap, activeSi || DEFAULT_SI);
+                                            if (netScore !== 'NR') {
+                                                points = Math.max(0, par - netScore + 2);
+                                                totalPoints += points;
+                                            }
+                                            */
+
                                             if (diff < 0) { // Birdie or better
                                                 cellClass = "bg-blue-500/20";
                                                 textClass = "text-blue-400 font-bold";
@@ -1048,16 +1065,23 @@ const ScorecardView = ({ players, activePars, holesMode, activeGameMode, activeS
                                                  cellClass = "bg-orange-500/10";
                                                  textClass = "text-orange-500";
                                             }
+                                            
+                                            displayValue = score;
+                                        } else if (score === 'NR') {
+                                            displayValue = 'NR';
+                                            textClass = "text-orange-500";
                                         }
 
                                         return (
                                             <td key={h} className={`px-1 py-3 text-center border-b border-slate-800 border-l border-slate-800 ${cellClass}`}>
-                                                <span className={textClass}>{score === 'NR' ? '-' : (score || '-')}</span>
+                                                <span className={textClass}>{displayValue}</span>
                                             </td>
                                         );
                                     })}
                                     <td className="px-2 py-3 text-center font-bold text-emerald-400 border-b border-slate-800 border-l border-slate-800">
-                                        {totalGross > 0 ? (totalGross - (activePars.slice(startHole-1, endHole).reduce((a: any,b: any)=>a+b,0) || 0) > 0 ? `+${totalGross - activePars.slice(startHole-1, endHole).reduce((a: any,b: any)=>a+b,0)}` : totalGross - activePars.slice(startHole-1, endHole).reduce((a: any,b: any)=>a+b,0)) : '-'}
+                                        <div className="font-bold text-white">
+                                            {totalGross > 0 ? (totalGross - (activePars.slice(startHole-1, endHole).reduce((a: any,b: any)=>a+b,0) || 0) > 0 ? `+${totalGross - activePars.slice(startHole-1, endHole).reduce((a: any,b: any)=>a+b,0)}` : totalGross - activePars.slice(startHole-1, endHole).reduce((a: any,b: any)=>a+b,0)) : '-'}
+                                        </div>
                                     </td>
                                 </tr>
                             );
@@ -1069,7 +1093,7 @@ const ScorecardView = ({ players, activePars, holesMode, activeGameMode, activeS
                 <span className="mr-3"><span className="text-blue-400">●</span> Birdie</span>
                 <span className="mr-3"><span className="text-white">●</span> Par</span>
                 <span className="mr-3"><span className="text-red-400">●</span> Bogey</span>
-                <span><span className="text-orange-500">●</span> Double+</span>
+                <span className="mr-3"><span className="text-orange-500">●</span> Double+</span>
             </div>
         </div>
     );
@@ -1083,7 +1107,7 @@ export default function App() {
   const [playerName, setPlayerName] = useState('');
   const [handicapIndex, setHandicapIndex] = useState('');
   const [savedPlayers, setSavedPlayers] = useState<any[]>([]);
-  const [syncStatus, setSyncStatus] = useState('saved'); // saved, saving, error
+  const [syncStatus, setSyncStatus] = useState('saved'); 
   
   const [players, setPlayers] = useState<any[]>([]);
   const [gameSettings, setGameSettings] = useState<any>(null);
@@ -1097,7 +1121,7 @@ export default function App() {
   const [showTeeSheet, setShowTeeSheet] = useState(false);
   const [showPortal, setShowPortal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [showInfo, setShowInfo] = useState(false); // Added Info state
+  const [showInfo, setShowInfo] = useState(false); 
   
   const [newGuestName, setNewGuestName] = useState('');
   const [newGuestHcp, setNewGuestHcp] = useState('');
@@ -1108,9 +1132,9 @@ export default function App() {
   const [pars, setPars] = useState(DEFAULT_PARS);
   const [si, setSi] = useState(DEFAULT_SI);
   const [gameMode, setGameMode] = useState('stroke'); 
-  const [teamMode, setTeamMode] = useState('singles'); // 'singles' or 'pairs' 
+  const [teamMode, setTeamMode] = useState('singles'); 
   const [useHandicapDiff, setUseHandicapDiff] = useState(false);
-  const [holesMode, setHolesMode] = useState('18'); // '18', 'front9', 'back9'
+  const [holesMode, setHolesMode] = useState('18');
 
   // ... existing useEffects and handlers ...
   // Re-adding the missing handlers referenced in SetupView: setSi is passed as prop
@@ -1124,7 +1148,6 @@ export default function App() {
             await signInWithCustomToken(auth, __initial_auth_token); 
         } else {
             // If no custom token, we wait for onAuthStateChanged or trigger anon sign-in
-            // This prevents a race condition or double-init
         }
       } catch (err) { 
           console.error("Auth init error", err); 
@@ -1169,7 +1192,7 @@ export default function App() {
       const unsubscribe = onSnapshot(q, (snapshot) => { 
           const sp: any[] = []; 
           snapshot.forEach(doc => sp.push({id: doc.id, ...doc.data()})); 
-          sp.sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically
+          sp.sort((a, b) => a.name.localeCompare(b.name)); 
           setSavedPlayers(sp); 
       }, (err) => { console.error("Error fetching players:", err); });
       return () => unsubscribe();
