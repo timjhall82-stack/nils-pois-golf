@@ -10,7 +10,7 @@ import {
   linkWithPopup,
   signOut,
   setPersistence
-  // browserLocalPersistence REMOVED entirely to fix runtime error
+  // browserLocalPersistence removed to prevent build issues
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -81,11 +81,8 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-const APP_VERSION = "v3.8.10 (Persistence & TS Fix)";
-// Note: Local images like "/NilsPoisGolfInAppLogo.png" won't load in this preview. 
-// I've kept the remote URL as a fallback so you can see the UI.
+const APP_VERSION = "v3.8.10 (Stable Fix)";
 const CUSTOM_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/1165/1165187.png"; 
-
 const APP_ID = "nils-pois-golf-v5"; 
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
 
@@ -182,10 +179,13 @@ const PRESET_COURSES = {
 };
 
 // --- Firebase Initialization ---
+// Robust handling for both Canvas (using __firebase_config) and Vercel/Production
 const getFirebaseConfig = () => {
   try {
     // Check for global window variable using bracket notation to avoid TS/JS issues
+    // @ts-ignore
     if (typeof window !== 'undefined' && window['__firebase_config']) {
+      // @ts-ignore
       return JSON.parse(window['__firebase_config']);
     }
     // Check for the variable directly (Canvas environment)
@@ -196,7 +196,7 @@ const getFirebaseConfig = () => {
     // console.log("Using fallback config");
   }
   
-  // Fallback for Vercel / Production
+  // Fallback for Vercel / Production (Your hardcoded keys)
   return {
     apiKey: "AIzaSyCllkJmbTVFmCIzkyIHXIO24FKlJ9i4VQg",
     authDomain: "nilspoisgolf.firebaseapp.com",
@@ -212,6 +212,7 @@ const firebaseConfig = getFirebaseConfig();
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+// @ts-ignore
 const appId = typeof __app_id !== 'undefined' ? __app_id : APP_ID;
 
 // --- Helper Functions ---
@@ -666,7 +667,6 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
           const portalFriends = savedPlayers.filter((p) => selectedFriends.has(p.id)); 
           const fullRoster = [...portalFriends, ...adhocGuests]; 
           await createGame(fullRoster, hostAvatar); 
-          // Note: createGame sets view to 'score' and loading to false internally via joinGameLogic
       } catch(e) { 
           alert("Error creating game: " + e.message); 
           setIsCreating(false); 
@@ -831,14 +831,14 @@ const ScoreView = ({
   currentHole, setCurrentHole, currentHoleScore, updateScore,
   activePars, myData, activeGameMode, activeSi, players, user,
   syncStatus, leaveGame, teamMode, gameSettings
-}: any) => {
+}) => {
   const holePar = activePars[currentHole - 1];
   const holeSi = activeSi ? activeSi[currentHole - 1] : (currentHole);
   const [showAllPlayers, setShowAllPlayers] = useState(false);
   const myGroup = myData.teeGroup;
   const relevantPlayers = useMemo(() => {
       if (showAllPlayers) return players;
-      if (myGroup) { const groupMembers = players.filter((p: any) => p.teeGroup === myGroup); if (!groupMembers.find((p: any) => p.userId === user.uid)) return [myData, ...groupMembers]; return groupMembers; }
+      if (myGroup) { const groupMembers = players.filter((p) => p.teeGroup === myGroup); if (!groupMembers.find((p) => p.userId === user.uid)) return [myData, ...groupMembers]; return groupMembers; }
       return players;
   }, [players, myGroup, showAllPlayers, user, myData]);
 
@@ -847,7 +847,7 @@ const ScoreView = ({
   let baselineHcp = 0;
   if (useDiff) {
       let min = 999;
-      players.forEach((p: any) => { if(p.courseHandicap < min) min = p.courseHandicap; });
+      players.forEach((p) => { if(p.courseHandicap < min) min = p.courseHandicap; });
       if(min !== 999) baselineHcp = min;
   }
 
@@ -868,7 +868,7 @@ const ScoreView = ({
       <div className="flex flex-col h-full animate-in fade-in duration-300">
           <div className="flex items-center justify-between bg-slate-900 p-4 rounded-2xl shadow-lg border border-slate-800 mb-4">
               <button 
-                onClick={() => setCurrentHole((h: number) => Math.max(startHole, h - 1))} 
+                onClick={() => setCurrentHole((h) => Math.max(startHole, h - 1))} 
                 disabled={currentHole === startHole}
                 className="p-3 bg-slate-800 rounded-xl text-slate-400 hover:text-white hover:bg-slate-700 active:scale-95 transition-all disabled:opacity-30"
               >
@@ -876,7 +876,7 @@ const ScoreView = ({
               </button>
               <div className="text-center"><h2 className="text-xs text-slate-500 font-bold uppercase tracking-widest">Hole {currentHole}</h2><div className="flex items-center justify-center space-x-2 text-sm text-slate-400"><span>Par {holePar}</span><span className="text-slate-600">•</span><span>SI {holeSi}</span></div></div>
               <button 
-                onClick={() => setCurrentHole((h: number) => Math.min(endHole, h + 1))} 
+                onClick={() => setCurrentHole((h) => Math.min(endHole, h + 1))} 
                 disabled={currentHole === endHole}
                 className="p-3 bg-slate-800 rounded-xl text-slate-400 hover:text-white hover:bg-slate-700 active:scale-95 transition-all disabled:opacity-30"
               >
@@ -885,7 +885,7 @@ const ScoreView = ({
           </div>
           <div className="flex justify-between items-center mb-4 px-2"><div className="text-xs font-bold text-slate-500 uppercase">{myGroup && !showAllPlayers ? `Group ${myGroup}` : 'All Players'}</div>{players.length > relevantPlayers.length || showAllPlayers ? (<button onClick={() => setShowAllPlayers(!showAllPlayers)} className="flex items-center text-xs text-blue-400 hover:text-white transition">{showAllPlayers ? <EyeOff size={14} className="mr-1"/> : <Eye size={14} className="mr-1"/>}{showAllPlayers ? 'Show Group' : 'Show All'}</button>) : null}</div>
           <div className="flex-1 overflow-y-auto space-y-3 pb-20">
-              {relevantPlayers.map((p: any) => {
+              {relevantPlayers.map((p) => {
                   const score = p.scores?.[currentHole];
                   const isNR = score === 'NR';
                   const displayVal = isNR ? 'NR' : (score || holePar);
@@ -1023,7 +1023,6 @@ const ScorecardView = ({ players, activePars, holesMode, activeGameMode, activeS
                                 <tr key={p.id} className={idx % 2 === 0 ? 'bg-slate-900/30' : 'bg-transparent'}>
                                     <td className="px-2 py-3 font-medium text-white border-b border-slate-800 sticky left-0 bg-slate-950 z-10 truncate max-w-[80px]">
                                         {p.playerName.split(' ')[0]}
-                                        <div className="text-[8px] text-slate-500 font-mono">CH: {p.courseHandicap}</div>
                                     </td>
                                     {holes.map(h => {
                                         const score = p.scores?.[h];
@@ -1090,7 +1089,6 @@ const ScorecardView = ({ players, activePars, holesMode, activeGameMode, activeS
                 <span className="mr-3"><span className="text-white">●</span> Par</span>
                 <span className="mr-3"><span className="text-red-400">●</span> Bogey</span>
                 <span className="mr-3"><span className="text-orange-500">●</span> Double+</span>
-                <span className="text-emerald-500 font-mono">Pts</span>
             </div>
         </div>
     );
