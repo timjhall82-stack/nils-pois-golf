@@ -81,7 +81,7 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-const APP_VERSION = "v3.7.5 (Restored)";
+const APP_VERSION = "v3.8.9 (Syntax Fix)";
 // Note: Local images like "/NilsPoisGolfInAppLogo.png" won't load in this preview. 
 // I've kept the remote URL as a fallback so you can see the UI.
 const CUSTOM_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/1165/1165187.png"; 
@@ -186,7 +186,7 @@ const PRESET_COURSES = {
 // Robust handling for both Canvas (using __firebase_config) and Vercel/Production
 const getFirebaseConfig = () => {
   try {
-    // 1. Check for global window variable safely (for specific builds)
+    // 1. Check for global window variable (sometimes used in specific builds)
     if (typeof window !== 'undefined' && window['__firebase_config']) {
       return JSON.parse(window['__firebase_config']);
     }
@@ -1106,7 +1106,7 @@ export default function App() {
   const [playerName, setPlayerName] = useState('');
   const [handicapIndex, setHandicapIndex] = useState('');
   const [savedPlayers, setSavedPlayers] = useState<any[]>([]);
-  const [syncStatus, setSyncStatus] = useState('saved'); 
+  const [syncStatus, setSyncStatus] = useState('saved'); // saved, saving, error
   
   const [players, setPlayers] = useState<any[]>([]);
   const [gameSettings, setGameSettings] = useState<any>(null);
@@ -1120,7 +1120,7 @@ export default function App() {
   const [showTeeSheet, setShowTeeSheet] = useState(false);
   const [showPortal, setShowPortal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [showInfo, setShowInfo] = useState(false); 
+  const [showInfo, setShowInfo] = useState(false); // Added Info state
   
   const [newGuestName, setNewGuestName] = useState('');
   const [newGuestHcp, setNewGuestHcp] = useState('');
@@ -1131,9 +1131,9 @@ export default function App() {
   const [pars, setPars] = useState(DEFAULT_PARS);
   const [si, setSi] = useState(DEFAULT_SI);
   const [gameMode, setGameMode] = useState('stroke'); 
-  const [teamMode, setTeamMode] = useState('singles'); 
+  const [teamMode, setTeamMode] = useState('singles'); // 'singles' or 'pairs' 
   const [useHandicapDiff, setUseHandicapDiff] = useState(false);
-  const [holesMode, setHolesMode] = useState('18');
+  const [holesMode, setHolesMode] = useState('18'); // '18', 'front9', 'back9'
 
   // ... existing useEffects and handlers ...
   // Re-adding the missing handlers referenced in SetupView: setSi is passed as prop
@@ -1147,6 +1147,7 @@ export default function App() {
             await signInWithCustomToken(auth, __initial_auth_token); 
         } else {
             // If no custom token, we wait for onAuthStateChanged or trigger anon sign-in
+            // This prevents a race condition or double-init
         }
       } catch (err) { 
           console.error("Auth init error", err); 
@@ -1191,7 +1192,7 @@ export default function App() {
       const unsubscribe = onSnapshot(q, (snapshot) => { 
           const sp: any[] = []; 
           snapshot.forEach(doc => sp.push({id: doc.id, ...doc.data()})); 
-          sp.sort((a, b) => a.name.localeCompare(b.name)); 
+          sp.sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically
           setSavedPlayers(sp); 
       }, (err) => { console.error("Error fetching players:", err); });
       return () => unsubscribe();
