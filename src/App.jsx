@@ -81,12 +81,8 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-const APP_VERSION = "v3.8.1 (Hooks Fix)";
-// Note: Local images like "/NilsPoisGolfInAppLogo.png" won't load in this preview. 
-// I've kept the remote URL as a fallback so you can see the UI.
+const APP_VERSION = "v3.8.2 (Ref Fix)";
 const CUSTOM_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/1165/1165187.png"; 
-// const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
-
 const APP_ID = "nils-pois-golf-v5"; 
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
 
@@ -172,22 +168,25 @@ const PRESET_COURSES = {
     rating: 67.7,
     pars: [4, 3, 4, 3, 4, 3, 4, 4, 3, 4, 4, 5, 3, 5, 4, 4, 4, 4],
     si:   [11, 9, 5, 15, 3, 17, 1, 7, 13, 14, 6, 12, 16, 4, 2, 8, 10, 18]
+  },
+  'moorpark_west_red': {
+    name: "Moor Park - West (Ladies)",
+    slope: 120,
+    rating: 70.2,
+    pars: [4, 3, 4, 3, 5, 3, 5, 4, 3, 3, 4, 5, 3, 5, 4, 4, 4, 4],
+    si:   [11, 13, 3, 15, 7, 17, 5, 1, 9, 4, 10, 12, 16, 8, 2, 6, 14, 18]
   }
 };
 
 // --- Firebase Initialization ---
-// IMPORTANT: This handles BOTH environments safely.
 const getFirebaseConfig = () => {
   try {
-    // Check for Canvas environment variable
     if (typeof __firebase_config !== 'undefined') {
       return JSON.parse(__firebase_config);
     }
   } catch (e) {
-    // Ignore error and fall back
   }
   
-  // Fallback for Vercel / Production
   return {
     apiKey: "AIzaSyCllkJmbTVFmCIzkyIHXIO24FKlJ9i4VQg",
     authDomain: "nilspoisgolf.firebaseapp.com",
@@ -1195,9 +1194,18 @@ export default function App() {
             if (view === 'lobby' || view === 'setup') setView('score'); 
         } 
         setLoading(false);
-    }, (err) => console.error(err));
+    }, (err) => {
+        console.error("Settings snapshot error:", err);
+        setLoading(false); // Ensure we don't hang on error
+    });
+    
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME), where('gameId', '==', gameId.toUpperCase()), where('type', '==', 'player'));
-    const unsubPlayers = onSnapshot(q, (snapshot) => { const playerData = []; snapshot.forEach((doc) => { playerData.push({ id: doc.id, ...doc.data() }); }); setPlayers(playerData); }, (err) => console.error(err));
+    const unsubPlayers = onSnapshot(q, (snapshot) => { 
+        const playerData = []; 
+        snapshot.forEach((doc) => { playerData.push({ id: doc.id, ...doc.data() }); }); 
+        setPlayers(playerData); 
+    }, (err) => console.error("Players snapshot error:", err));
+    
     return () => { unsubSettings(); unsubPlayers(); };
   }, [user, gameId]);
 
