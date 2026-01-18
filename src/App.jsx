@@ -168,9 +168,9 @@ const firebaseConfig = {
   appId: "1:606422939116:web:d2a51bd4a1d5606c787cc9",
   measurementId: "G-VZ8X10ZEC4"
 };
-//const app = initializeApp(firebaseConfig);
-//const auth = getAuth(app);
-//const db = getFirestore(app);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
 // --- Helper Functions ---
 const calculateNetScore = (gross, holeIdx, ch, siList) => {
