@@ -169,8 +169,6 @@ const PRESET_COURSES = {
 };
 
 // --- Firebase Initialization ---
-// IMPORTANT: This uses the environment's configuration to work in this preview.
-// Hardcoded API keys will likely fail due to domain restrictions.
 const firebaseConfig = {
   apiKey: "AIzaSyCllkJmbTVFmCIzkyIHXIO24FKlJ9i4VQg",
   authDomain: "nilspoisgolf.firebaseapp.com",
@@ -180,14 +178,9 @@ const firebaseConfig = {
   appId: "1:606422939116:web:d2a51bd4a1d5606c787cc9",
   measurementId: "G-VZ8X10ZEC4"
 };
-
-// Initialize Firebase
-const analytics = getAnalytics(app);
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-// Use the ID from your config as the default fallback
-const appId = typeof __app_id !== 'undefined' ? __app_id : APP_ID;
 
 // --- Helper Functions ---
 const calculateNetScore = (gross, holeIdx, ch, siList) => {
