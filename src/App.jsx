@@ -61,7 +61,7 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
-  History,
+  History as HistoryIcon, // Renamed to avoid global conflict
   Calendar,
   Check,    
   Loader2,  
@@ -81,7 +81,7 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-const APP_VERSION = "v3.7.6 (Universal Config Fix)";
+const APP_VERSION = "v3.7.8 (Syntax Fix)";
 // Note: Local images like "/NilsPoisGolfInAppLogo.png" won't load in this preview. 
 // I've kept the remote URL as a fallback so you can see the UI.
 const CUSTOM_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/1165/1165187.png"; 
@@ -172,6 +172,13 @@ const PRESET_COURSES = {
     rating: 67.7,
     pars: [4, 3, 4, 3, 4, 3, 4, 4, 3, 4, 4, 5, 3, 5, 4, 4, 4, 4],
     si:   [11, 9, 5, 15, 3, 17, 1, 7, 13, 14, 6, 12, 16, 4, 2, 8, 10, 18]
+  },
+  'moorpark_west_red': {
+    name: "Moor Park - West (Ladies)",
+    slope: 120,
+    rating: 70.2,
+    pars: [4, 3, 4, 3, 5, 3, 5, 4, 3, 3, 4, 5, 3, 5, 4, 4, 4, 4],
+    si:   [11, 13, 3, 15, 7, 17, 5, 1, 9, 4, 10, 12, 16, 8, 2, 6, 14, 18]
   }
 };
 
@@ -353,7 +360,7 @@ const HistoryView = ({ userId, onClose, onLoadGame }) => {
     return (
         <div className="fixed inset-0 bg-slate-950 z-[60] flex flex-col animate-in slide-in-from-bottom duration-300">
             <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900">
-                <h3 className="font-bold text-white flex items-center text-lg"><History size={20} className="mr-2 text-purple-400" /> Game History</h3>
+                <h3 className="font-bold text-white flex items-center text-lg"><HistoryIcon size={20} className="mr-2 text-purple-400" /> Game History</h3>
                 <button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X size={20} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -479,7 +486,7 @@ const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput,
     </div>
     <div className="w-full max-w-sm grid grid-cols-3 gap-2">
         <button onClick={() => setShowPortal(true)} className="bg-slate-900/60 hover:bg-slate-800/80 backdrop-blur-sm border border-white/5 p-3 rounded-xl flex flex-col items-center justify-center group transition-all shadow-lg"><div className="bg-blue-500/20 p-2 rounded-lg text-blue-400 mb-1 group-hover:bg-blue-500 group-hover:text-white transition-colors"><Contact size={18} /></div><div className="font-bold text-[10px] text-slate-300">Players</div></button>
-        <button onClick={() => setShowHistory(true)} className="bg-slate-900/60 hover:bg-slate-800/80 backdrop-blur-sm border border-white/5 p-3 rounded-xl flex flex-col items-center justify-center group transition-all shadow-lg"><div className="bg-purple-500/20 p-2 rounded-lg text-purple-400 mb-1 group-hover:bg-purple-500 group-hover:text-white transition-colors"><History size={18} /></div><div className="font-bold text-[10px] text-slate-300">History</div></button>
+        <button onClick={() => setShowHistory(true)} className="bg-slate-900/60 hover:bg-slate-800/80 backdrop-blur-sm border border-white/5 p-3 rounded-xl flex flex-col items-center justify-center group transition-all shadow-lg"><div className="bg-purple-500/20 p-2 rounded-lg text-purple-400 mb-1 group-hover:bg-purple-500 group-hover:text-white transition-colors"><HistoryIcon size={18} /></div><div className="font-bold text-[10px] text-slate-300">History</div></button>
         <button onClick={() => setShowInfo(true)} className="bg-slate-900/60 hover:bg-slate-800/80 backdrop-blur-sm border border-white/5 p-3 rounded-xl flex flex-col items-center justify-center group transition-all shadow-lg"><div className="bg-emerald-500/20 p-2 rounded-lg text-emerald-400 mb-1 group-hover:bg-emerald-500 group-hover:text-white transition-colors"><Info size={18} /></div><div className="font-bold text-[10px] text-slate-300">Info</div></button>
     </div>
     <div className="w-full max-w-sm relative py-2"><div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t border-white/10"></div></div><div className="relative flex justify-center"><span className="bg-black/40 backdrop-blur px-2 text-xs text-slate-400 uppercase tracking-widest rounded">Or Join Existing</span></div></div>
@@ -734,6 +741,7 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                                 <option value="moorpark_high_red">Moor Park - High (Red)</option>
                                 <option value="moorpark_west_white">Moor Park - West (White)</option>
                                 <option value="moorpark_west_yellow">Moor Park - West (Yellow)</option>
+                                <option value="moorpark_west_red">Moor Park - West (Red)</option>
                             </select>
                             <button type="button" onClick={() => setShowBrowser(true)} className="px-3 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors flex-shrink-0"><Globe size={18} /></button>
                         </div>
@@ -972,7 +980,7 @@ const LeaderboardView = ({ leaderboardData, user, activeGameMode, teamMode, game
   </div>
 );
 
-const ScorecardView = ({ players, activePars, holesMode }) => {
+const ScorecardView = ({ players, activePars, holesMode, activeGameMode, activeSi }) => {
     // Determine hole range
     const startHole = holesMode === 'back9' ? 10 : 1;
     const endHole = holesMode === 'front9' ? 9 : 18;
@@ -998,20 +1006,36 @@ const ScorecardView = ({ players, activePars, holesMode }) => {
                     <tbody>
                         {players.map((p, idx) => {
                             let totalGross = 0;
+                            let totalPoints = 0;
+                            
                             return (
                                 <tr key={p.id} className={idx % 2 === 0 ? 'bg-slate-900/30' : 'bg-transparent'}>
                                     <td className="px-2 py-3 font-medium text-white border-b border-slate-800 sticky left-0 bg-slate-950 z-10 truncate max-w-[80px]">
                                         {p.playerName.split(' ')[0]}
+                                        <div className="text-[8px] text-slate-500 font-mono">CH: {p.courseHandicap}</div>
                                     </td>
                                     {holes.map(h => {
                                         const score = p.scores?.[h];
                                         const par = activePars[h-1];
+                                        // Use passed activeSi or default if missing
+                                        const si = activeSi ? activeSi[h-1] : h; 
+                                        
                                         let cellClass = "";
                                         let textClass = "text-slate-300";
+                                        let displayValue = "-";
+                                        let points = 0;
 
                                         if (score && score !== 'NR') {
                                             totalGross += score;
                                             const diff = score - par;
+
+                                            // Calculate Stableford Points
+                                            const netScore = calculateNetScore(score, h-1, p.courseHandicap, activeSi || DEFAULT_SI);
+                                            if (netScore !== 'NR') {
+                                                points = Math.max(0, par - netScore + 2);
+                                                totalPoints += points;
+                                            }
+
                                             if (diff < 0) { // Birdie or better
                                                 cellClass = "bg-blue-500/20";
                                                 textClass = "text-blue-400 font-bold";
@@ -1024,16 +1048,29 @@ const ScorecardView = ({ players, activePars, holesMode }) => {
                                                  cellClass = "bg-orange-500/10";
                                                  textClass = "text-orange-500";
                                             }
+                                            
+                                            displayValue = score;
+                                        } else if (score === 'NR') {
+                                            displayValue = 'NR';
+                                            textClass = "text-orange-500";
                                         }
 
                                         return (
-                                            <td key={h} className={`px-1 py-3 text-center border-b border-slate-800 border-l border-slate-800 ${cellClass}`}>
-                                                <span className={textClass}>{score === 'NR' ? '-' : (score || '-')}</span>
+                                            <td key={h} className={`px-1 py-2 text-center border-b border-slate-800 border-l border-slate-800 ${cellClass}`}>
+                                                <div className={textClass}>{displayValue}</div>
+                                                {(score && score !== 'NR') && (
+                                                    <div className="text-[9px] text-emerald-500 font-mono">{points}</div>
+                                                )}
                                             </td>
                                         );
                                     })}
-                                    <td className="px-2 py-3 text-center font-bold text-emerald-400 border-b border-slate-800 border-l border-slate-800">
-                                        {totalGross > 0 ? (totalGross - (activePars.slice(startHole-1, endHole).reduce((a,b)=>a+b,0) || 0) > 0 ? `+${totalGross - activePars.slice(startHole-1, endHole).reduce((a,b)=>a+b,0)}` : totalGross - activePars.slice(startHole-1, endHole).reduce((a,b)=>a+b,0)) : '-'}
+                                    <td className="px-2 py-3 text-center border-b border-slate-800 border-l border-slate-800">
+                                        <div className="font-bold text-white">
+                                            {totalGross > 0 ? (totalGross - (activePars.slice(startHole-1, endHole).reduce((a,b)=>a+b,0) || 0) > 0 ? `+${totalGross - activePars.slice(startHole-1, endHole).reduce((a,b)=>a+b,0)}` : totalGross - activePars.slice(startHole-1, endHole).reduce((a,b)=>a+b,0)) : '-'}
+                                        </div>
+                                        <div className="text-[10px] text-emerald-400 font-bold font-mono mt-1">
+                                            {totalPoints} pts
+                                        </div>
                                     </td>
                                 </tr>
                             );
@@ -1045,7 +1082,8 @@ const ScorecardView = ({ players, activePars, holesMode }) => {
                 <span className="mr-3"><span className="text-blue-400">●</span> Birdie</span>
                 <span className="mr-3"><span className="text-white">●</span> Par</span>
                 <span className="mr-3"><span className="text-red-400">●</span> Bogey</span>
-                <span><span className="text-orange-500">●</span> Double+</span>
+                <span className="mr-3"><span className="text-orange-500">●</span> Double+</span>
+                <span className="text-emerald-500 font-mono">Pts</span>
             </div>
         </div>
     );
@@ -1398,201 +1436,12 @@ export default function App() {
   const handleLogin = async () => { const provider = new GoogleAuthProvider(); try { if (user && user.isAnonymous) { await linkWithPopup(user, provider); } else { await signInWithPopup(auth, provider); } } catch (error) { if (error.code === 'auth/credential-already-in-use') { await signInWithPopup(auth, provider); } else if (error.code === 'auth/popup-closed-by-user') { /* Ignore */ } else { alert("Login failed: " + error.message + "\nCheck domain whitelist in Firebase."); } } };
   const handleLogout = async () => { await signOut(auth); await signInAnonymously(auth); };
 
-  const activePars = gameSettings?.pars || DEFAULT_PARS;
-  const activeSi = gameSettings?.si || DEFAULT_SI;
-  const activeGameMode = gameSettings?.gameMode || 'stroke';
-  const activeTeamMode = gameSettings?.teamMode || 'singles';
-
-  const leaderboardData = useMemo(() => {
-    let lowestHcp = 999;
-    players.forEach(p => { if(p.courseHandicap < lowestHcp) lowestHcp = p.courseHandicap; });
-    if (lowestHcp === 999) lowestHcp = 0;
-
-    // 1. Calculate Individual Stats First
-    const playerDetails = players.map(p => {
-        const scores = p.scores || {};
-        const ch = p.courseHandicap || 0;
-        const netScores = {};
-        let points = 0;
-        let gross = 0;
-        let holesPlayed = 0;
-
-        // Respect 9-hole filtering for stats
-        const start = (gameSettings?.holesMode === 'back9') ? 9 : 0;
-        const end = (gameSettings?.holesMode === 'front9') ? 9 : 18;
-
-        for(let i=start; i<end; i++) {
-             const h = i + 1; 
-             const s = scores[h];
-             const par = activePars[i];
-             
-             if (s === 'NR') {
-                 netScores[h] = 'NR';
-                 holesPlayed++;
-             } else if (s) { 
-                 const net = calculateNetScore(s, i, ch, activeSi);
-                 netScores[h] = net;
-                 gross += s;
-                 holesPlayed++;
-                 if (net !== 'NR') {
-                    points += Math.max(0, par - net + 2);
-                 }
-             }
-        }
-        
-        return { ...p, netScores, scores, ch, totalPoints: points, gross, holesPlayed };
-    });
-
-    // 2. If Singles, return formatted individuals
-    if (activeTeamMode === 'singles') {
-        const skinsWon = {};
-        if (activeGameMode === 'skins') {
-            let pot = 1;
-            playerDetails.forEach(p => skinsWon[p.id] = 0);
-            
-            const start = (gameSettings?.holesMode === 'back9') ? 10 : 1;
-            const end = (gameSettings?.holesMode === 'front9') ? 9 : 18;
-
-            for (let i = start; i <= end; i++) {
-                const holeScores = playerDetails.map(p => {
-                     const s = p.scores[i];
-                     if (!s || s === 'NR') return { id: p.id, net: 'NR' }; 
-                     const baseline = (gameSettings?.useHandicapDiff) ? lowestHcp : 0;
-                     const strokesRec = getShotsOnHole(p.ch - baseline, activeSi[i-1]);
-                     return { id: p.id, net: s - strokesRec };
-                }).filter(s => s.net !== 'NR');
-
-                if (holeScores.length === 0) continue; 
-                
-                const minVal = Math.min(...holeScores.map(s => s.net));
-                const winners = holeScores.filter(s => s.net === minVal);
-                if (winners.length === 1) { skinsWon[winners[0].id] += pot; pot = 1; } else { pot += 1; }
-            }
-        }
-
-        const myPlayer = playerDetails.find(p => p.userId === user?.uid);
-        const matchStatus = {};
-        if (activeGameMode === 'match' && myPlayer) {
-            playerDetails.forEach(opponent => {
-                if (opponent.userId === user.uid) { matchStatus[opponent.id] = "-"; return; }
-                let myWins = 0; let opWins = 0;
-                
-                const useDiff = gameSettings?.useHandicapDiff;
-                const lowerCH = useDiff ? Math.min(myPlayer.ch, opponent.ch) : 0;
-                const myPlayingHcp = myPlayer.ch - lowerCH;
-                const opPlayingHcp = opponent.ch - lowerCH;
-                
-                const start = (gameSettings?.holesMode === 'back9') ? 10 : 1;
-                const end = (gameSettings?.holesMode === 'front9') ? 9 : 18;
-
-                for (let i = start; i <= end; i++) {
-                    const myGross = myPlayer.scores[i];
-                    const opGross = opponent.scores[i];
-                    const myIsNR = myGross === 'NR' || !myGross;
-                    const opIsNR = opGross === 'NR' || !opGross;
-
-                    if (!myIsNR && !opIsNR) {
-                        const myNet = myGross - getShotsOnHole(myPlayingHcp, activeSi[i-1]);
-                        const opNet = opGross - getShotsOnHole(opPlayingHcp, activeSi[i-1]);
-                        if (myNet < opNet) myWins++; else if (opNet < myNet) opWins++;
-                    } else if (myIsNR && !opIsNR) { opWins++; } else if (!myIsNR && opIsNR) { myWins++; }
-                }
-                const diff = myWins - opWins;
-                if (diff === 0) matchStatus[opponent.id] = "AS"; else if (diff > 0) matchStatus[opponent.id] = `${diff} DN`; else matchStatus[opponent.id] = `${Math.abs(diff)} UP`;
-            });
-        }
-
-        return playerDetails.map(p => {
-             let parForHolesPlayed = 0; 
-             // Only count par for holes in current 9/18 selection
-             const start = (gameSettings?.holesMode === 'back9') ? 9 : 0;
-             const end = (gameSettings?.holesMode === 'front9') ? 9 : 18;
-             
-             Object.keys(p.scores).forEach(holeKey => { 
-                 const hIdx = parseInt(holeKey)-1;
-                 if (hIdx >= start && hIdx < end) {
-                    parForHolesPlayed += activePars[hIdx]; 
-                 }
-             });
-
-             const grossToPar = (p.gross === 0 && p.holesPlayed > 0) ? 999 : (p.gross - parForHolesPlayed);
-             // Adjust CH for 9 hole calculation if needed, simplified for now
-             const divisor = (gameSettings?.holesMode === '18') ? 18 : 9;
-             const netTotal = (p.gross === 0 && p.holesPlayed > 0) ? 999 : (p.gross - Math.round(p.ch * (p.holesPlayed/divisor)));
-
-             return { 
-                 id: p.id, name: p.playerName, avatarUrl: p.avatarUrl, ch: p.ch, holesPlayed: p.holesPlayed,
-                 totalPoints: p.totalPoints,
-                 grossToPar, netTotal,
-                 displayScore: p.holesPlayed === 0 ? 'E' : (grossToPar === 999 ? 'NR' : (grossToPar === 0 ? 'E' : (grossToPar > 0 ? `+${grossToPar}` : grossToPar))),
-                 matchStatus: matchStatus[p.id] || '-', 
-                 skinsWon: skinsWon[p.id] || 0,
-                 isUser: p.userId === user?.uid
-             };
-        }).sort((a,b) => activeGameMode === 'stableford' ? b.totalPoints - a.totalPoints : a.grossToPar - b.grossToPar);
-    } 
-    
-    // 3. Pairs Logic (Simplified for brevity, assumes 18 hole loop for now)
-    else {
-        const teams = {};
-        playerDetails.forEach(p => {
-            if (!p.teeGroup) return;
-            if (!teams[p.teeGroup]) teams[p.teeGroup] = [];
-            teams[p.teeGroup].push(p);
-        });
-
-        const teamResults = Object.keys(teams).map(groupNum => {
-            const members = teams[groupNum];
-            const teamName = members.map(m => m.playerName.split(' ')[0]).join(' & ');
-            const isUserTeam = members.some(m => m.userId === user?.uid);
-            
-            let teamPoints = 0;
-            let teamGross = 0;
-            let holesPlayed = 0;
-
-            const start = (gameSettings?.holesMode === 'back9') ? 9 : 0;
-            const end = (gameSettings?.holesMode === 'front9') ? 9 : 18;
-
-            for(let i=start; i<end; i++) {
-                const h = i + 1;
-                const holePar = activePars[i];
-                const holeScores = members.map(m => ({
-                    gross: m.scores[h],
-                    net: m.netScores[h],
-                    pts: (m.netScores[h] !== 'NR' && m.netScores[h] !== undefined) ? Math.max(0, holePar - m.netScores[h] + 2) : 0
-                }));
-
-                if (holeScores.some(hs => hs.gross !== undefined)) {
-                    holesPlayed++;
-                    const bestPts = Math.max(...holeScores.map(hs => hs.pts));
-                    teamPoints += bestPts;
-                    const validGross = holeScores.map(hs => hs.gross).filter(g => g !== 'NR' && g !== undefined);
-                     if (validGross.length > 0) { teamGross += Math.min(...validGross); }
-                }
-            }
-            
-            let parTotal = 0;
-            for(let i=start; i<end; i++) { if(members[0].scores[i+1]) parTotal += activePars[i]; }
-            const grossToPar = teamGross - parTotal;
-
-            return {
-                id: groupNum, name: teamName, isUser: isUserTeam,
-                holesPlayed, totalPoints: teamPoints, netTotal: 0, grossToPar,
-                displayScore: holesPlayed === 0 ? 'E' : (grossToPar > 0 ? `+${grossToPar}` : grossToPar),
-                matchStatus: '-', skinsWon: 0
-            };
-        });
-
-        return teamResults.sort((a,b) => activeGameMode === 'stableford' ? b.totalPoints - a.totalPoints : a.grossToPar - b.grossToPar);
-    }
-
-  }, [players, activePars, activeSi, activeGameMode, activeTeamMode, user, gameSettings]);
-
-  const myData = players.find(p => p.userId === user?.uid) || {};
-  const myScores = myData.scores || {};
-  const currentHoleScore = myScores[currentHole] || activePars[currentHole-1];
-
-  if (loading) return <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-500 space-y-4"><Activity className="animate-spin text-emerald-600" size={32} /><p className="text-xs uppercase tracking-widest">Loading Course Data...</p></div>;
+  if (loading) return (
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-500 space-y-4">
+        <Loader2 className="animate-spin text-emerald-600" size={32} />
+        <p className="text-xs uppercase tracking-widest">Loading Application...</p>
+    </div>
+  );
 
   return (
     <div 
@@ -1616,7 +1465,7 @@ export default function App() {
                 setShowHistory={setShowHistory}
                 user={user} handleLogin={handleLogin} handleLogout={handleLogout}
                 setShowInfo={setShowInfo}
-                savedPlayers={savedPlayers} // Pass Saved Players to Lobby for Dropdown
+                savedPlayers={savedPlayers} 
             />
         )}
         
@@ -1627,8 +1476,8 @@ export default function App() {
                 rating={rating} setRating={setRating}
                 pars={pars} setPars={setPars}
                 gameMode={gameMode} setGameMode={setGameMode}
-                setSi={setSi} // Pass setSi to SetupView
-                si={si}       // Pass si to SetupView
+                setSi={setSi} 
+                si={si}       
                 playerName={playerName} setPlayerName={setPlayerName}
                 handicapIndex={handicapIndex} setHandicapIndex={setHandicapIndex}
                 createGame={createGame}
@@ -1688,7 +1537,9 @@ export default function App() {
                         <ScorecardView 
                             players={players} 
                             activePars={activePars} 
+                            activeSi={activeSi} 
                             holesMode={gameSettings?.holesMode || '18'} 
+                            activeGameMode={activeGameMode}
                         />
                     )}
                     
