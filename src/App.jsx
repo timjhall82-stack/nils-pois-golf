@@ -61,7 +61,7 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
-  History as HistoryIcon, // Renamed to avoid global conflict
+  History as HistoryIcon, 
   Calendar,
   Check,    
   Loader2,  
@@ -81,7 +81,7 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-const APP_VERSION = "v3.8.4 (Persistence & Config Fix)";
+const APP_VERSION = "v3.8.5 (Vercel Fix)";
 // Note: Local images like "/NilsPoisGolfInAppLogo.png" won't load in this preview. 
 // I've kept the remote URL as a fallback so you can see the UI.
 const CUSTOM_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/1165/1165187.png"; 
