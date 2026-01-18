@@ -81,7 +81,7 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-8const APP_VERSION = "v3.7.5 (Jan 13th 2026, 14:01AM)";
+const APP_VERSION = "v3.7.5 (Jan 13th 2026, 14:01AM)";
 // Using a placeholder URL that works in this environment since local assets won't load
 const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png";  
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
