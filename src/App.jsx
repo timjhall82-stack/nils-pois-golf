@@ -84,8 +84,8 @@ import {
 const APP_VERSION = "v3.7.5 (Jan 13th 2026, 14:01AM)";
 // Note: Local images like "/NilsPoisGolfInAppLogo.png" won't load in this preview. 
 // I've kept the remote URL as a fallback so you can see the UI.
-const CUSTOM_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/1165/1165187.png"; 
-// const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
+//const CUSTOM_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/1165/1165187.png"; 
+const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
 
 const APP_ID = "nils-pois-golf-v5"; 
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
@@ -169,8 +169,6 @@ const PRESET_COURSES = {
 };
 
 // --- Firebase Initialization ---
-// IMPORTANT: This uses the environment's configuration to work in this preview.
-// Hardcoded API keys will likely fail due to domain restrictions.
 const firebaseConfig = {
   apiKey: "AIzaSyCllkJmbTVFmCIzkyIHXIO24FKlJ9i4VQg",
   authDomain: "nilspoisgolf.firebaseapp.com",
@@ -182,9 +180,7 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-//const db = getFirestore(app);
-// Use the ID from your config as the default fallback
-const appId = typeof __app_id !== 'undefined' ? __app_id : APP_ID;
+const db = getFirestore(app);
 
 // --- Helper Functions ---
 const calculateNetScore = (gross, holeIdx, ch, siList) => {
