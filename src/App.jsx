@@ -81,7 +81,7 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-const APP_VERSION = "v3.8.0 (Bug Fix)";
+const APP_VERSION = "v3.8.1 (Hooks Fix)";
 // Note: Local images like "/NilsPoisGolfInAppLogo.png" won't load in this preview. 
 // I've kept the remote URL as a fallback so you can see the UI.
 const CUSTOM_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/1165/1165187.png"; 
@@ -172,13 +172,6 @@ const PRESET_COURSES = {
     rating: 67.7,
     pars: [4, 3, 4, 3, 4, 3, 4, 4, 3, 4, 4, 5, 3, 5, 4, 4, 4, 4],
     si:   [11, 9, 5, 15, 3, 17, 1, 7, 13, 14, 6, 12, 16, 4, 2, 8, 10, 18]
-  },
-  'moorpark_west_red': {
-    name: "Moor Park - West (Ladies)",
-    slope: 120,
-    rating: 70.2,
-    pars: [4, 3, 4, 3, 5, 3, 5, 4, 3, 3, 4, 5, 3, 5, 4, 4, 4, 4],
-    si:   [11, 13, 3, 15, 7, 17, 5, 1, 9, 4, 10, 12, 16, 8, 2, 6, 14, 18]
   }
 };
 
@@ -663,6 +656,7 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
           const portalFriends = savedPlayers.filter(p => selectedFriends.has(p.id)); 
           const fullRoster = [...portalFriends, ...adhocGuests]; 
           await createGame(fullRoster, hostAvatar); 
+          // Note: createGame sets view to 'score' and loading to false internally via joinGameLogic
       } catch(e) { 
           alert("Error creating game: " + e.message); 
           setIsCreating(false); 
@@ -1133,17 +1127,23 @@ export default function App() {
   const [useHandicapDiff, setUseHandicapDiff] = useState(false);
   const [holesMode, setHolesMode] = useState('18'); // '18', 'front9', 'back9'
 
+  // ... existing useEffects and handlers ...
+  // Re-adding the missing handlers referenced in SetupView: setSi is passed as prop
+  
   useEffect(() => {
     const initAuth = async () => {
       try { 
         await setPersistence(auth, browserLocalPersistence); 
+        // Only try custom token if the variable actually exists and is not empty
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { 
             await signInWithCustomToken(auth, __initial_auth_token); 
         } else {
-            // Default to anonymouse if no custom token
+            // If no custom token, we wait for onAuthStateChanged or trigger anon sign-in
+            // This prevents a race condition or double-init
         }
       } catch (err) { 
           console.error("Auth init error", err); 
+          // Fallback to anonymous if custom token fails
           try { await signInAnonymously(auth); } catch(e) { console.error("Anon fallback failed", e); }
       }
     };
@@ -1161,9 +1161,11 @@ export default function App() {
             if (savedHcp) setHandicapIndex(savedHcp); 
             setJoinCodeInput(savedGame); 
         } else { 
+            // If authenticated but no saved game, stop loading so we see the Lobby
             setLoading(false); 
         }
       } else {
+        // If not authenticated, sign in anonymously
         try { await signInAnonymously(auth); } catch (e) { console.error("Anon sign in failed", e); setLoading(false); }
       }
     });
@@ -1176,7 +1178,7 @@ export default function App() {
       const unsubscribe = onSnapshot(q, (snapshot) => { 
           const sp = []; 
           snapshot.forEach(doc => sp.push({id: doc.id, ...doc.data()})); 
-          sp.sort((a, b) => a.name.localeCompare(b.name));
+          sp.sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically
           setSavedPlayers(sp); 
       }, (err) => { console.error("Error fetching players:", err); });
       return () => unsubscribe();
@@ -1216,6 +1218,7 @@ export default function App() {
           friendsToAdd.forEach(friend => {
               const guestId = `guest_${Math.random().toString(36).substring(2, 9)}`;
               const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, `${newCode}_${guestId}`);
+              // Calculate CH based on 9/18 selection
               const ch = calculateCourseHandicap(friend.handicap, slope, rating, totalPar, holesMode);
               batch.set(docRef, { 
                   gameId: newCode, 
@@ -1289,12 +1292,14 @@ export default function App() {
   
   const loadHistoricalGame = (oldGameId) => { 
       if(!oldGameId) return; 
+      // Reset critical state to prevent UI glitches during transition
       setLoading(true);
       setGameId(oldGameId); 
-      setPlayers([]); 
-      setGameSettings(null); 
+      setPlayers([]); // Clear players to avoid stale data
+      setGameSettings(null); // Clear settings to avoid stale data
       setShowHistory(false); 
       setView('leaderboard'); 
+      // Loading will be cleared by the main useEffect when data fetches
   };
 
   const addGuestPlayer = async (avatarUrl = '') => {
