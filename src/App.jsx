@@ -10,7 +10,7 @@ import {
   linkWithPopup,
   signOut,
   setPersistence,
-  browserLocalPersistence
+  // browserLocalPersistence removed to prevent build issues
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -61,7 +61,7 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
-  History as HistoryIcon, 
+  History as HistoryIcon, // Renamed to avoid global conflict
   Calendar,
   Check,    
   Loader2,  
@@ -81,8 +81,12 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-const APP_VERSION = "v3.8.2 (Ref Fix)";
+const APP_VERSION = "v3.8.4 (Persistence & Config Fix)";
+// Note: Local images like "/NilsPoisGolfInAppLogo.png" won't load in this preview. 
+// I've kept the remote URL as a fallback so you can see the UI.
 const CUSTOM_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/1165/1165187.png"; 
+// const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
+
 const APP_ID = "nils-pois-golf-v5"; 
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
 
@@ -179,14 +183,22 @@ const PRESET_COURSES = {
 };
 
 // --- Firebase Initialization ---
+// Robust handling for both Canvas (using __firebase_config) and Vercel/Production
 const getFirebaseConfig = () => {
   try {
+    // 1. Check for global window variable (sometimes used in specific builds)
+    if (typeof window !== 'undefined' && (window as any).__firebase_config) {
+      return JSON.parse((window as any).__firebase_config);
+    }
+    // 2. Check for the variable directly (Canvas environment)
     if (typeof __firebase_config !== 'undefined') {
       return JSON.parse(__firebase_config);
     }
   } catch (e) {
+    // console.log("Using fallback config");
   }
   
+  // 3. Fallback for Vercel / Production (Your hardcoded keys)
   return {
     apiKey: "AIzaSyCllkJmbTVFmCIzkyIHXIO24FKlJ9i4VQg",
     authDomain: "nilspoisgolf.firebaseapp.com",
@@ -205,7 +217,7 @@ const db = getFirestore(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : APP_ID;
 
 // --- Helper Functions ---
-const calculateNetScore = (gross, holeIdx, ch, siList) => {
+const calculateNetScore = (gross: any, holeIdx: number, ch: number, siList: number[]) => {
     if (gross === 'NR' || !gross) return 'NR';
     const holeSi = siList[holeIdx];
     let strokesReceived = 0;
@@ -215,7 +227,7 @@ const calculateNetScore = (gross, holeIdx, ch, siList) => {
     return gross - strokesReceived;
 };
 
-const calculateCourseHandicap = (index, slopeVal, ratingVal, parVal, holesMode = '18') => {
+const calculateCourseHandicap = (index: any, slopeVal: any, ratingVal: any, parVal: any, holesMode = '18') => {
     if (!index || index === '') return 0;
     let idx = parseFloat(index);
     const slp = parseFloat(slopeVal) || 113;
@@ -228,7 +240,7 @@ const calculateCourseHandicap = (index, slopeVal, ratingVal, parVal, holesMode =
     return ch;
 };
 
-const getShotsOnHole = (playingHandicap, holeSi) => {
+const getShotsOnHole = (playingHandicap: number, holeSi: number) => {
     let shots = 0;
     if (playingHandicap >= holeSi) shots = 1;
     if (playingHandicap >= holeSi + 18) shots = 2;
@@ -239,12 +251,12 @@ const getShotsOnHole = (playingHandicap, holeSi) => {
 
 // --- Components ---
 
-const InfoPage = ({ onClose }) => {
-    const [openSection, setOpenSection] = useState(null);
+const InfoPage = ({ onClose }: any) => {
+    const [openSection, setOpenSection] = useState<string | null>(null);
 
-    const toggle = (sec) => setOpenSection(openSection === sec ? null : sec);
+    const toggle = (sec: string) => setOpenSection(openSection === sec ? null : sec);
 
-    const FAQItem = ({ title, id, children }) => (
+    const FAQItem = ({ title, id, children }: any) => (
         <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden mb-2">
             <button 
                 onClick={() => toggle(id)}
@@ -309,14 +321,14 @@ const InfoPage = ({ onClose }) => {
     );
 };
 
-const SyncStatus = ({ status }) => {
+const SyncStatus = ({ status }: any) => {
     if (status === 'saving') return <div className="flex items-center text-yellow-500 text-[10px] font-medium bg-slate-800 px-2 py-1 rounded-full border border-slate-700"><Loader2 size={12} className="animate-spin mr-1" /> Saving...</div>;
     if (status === 'error') return <div className="flex items-center text-red-500 text-[10px] font-medium bg-slate-800 px-2 py-1 rounded-full border border-red-900/50"><CloudOff size={12} className="mr-1" /> Offline</div>;
     return <div className="flex items-center text-slate-500 text-[10px] font-medium bg-slate-800 px-2 py-1 rounded-full border border-slate-700 transition-all duration-500"><Check size={12} className="mr-1 text-emerald-500" /> Saved</div>;
 };
 
-const HistoryView = ({ userId, onClose, onLoadGame }) => {
-    const [history, setHistory] = useState([]);
+const HistoryView = ({ userId, onClose, onLoadGame }: any) => {
+    const [history, setHistory] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -343,7 +355,7 @@ const HistoryView = ({ userId, onClose, onLoadGame }) => {
                     return null;
                 });
                 const results = await Promise.all(promises);
-                setHistory(results.filter(g => g !== null).sort((a, b) => new Date(b.date) - new Date(a.date)));
+                setHistory(results.filter(g => g !== null).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()));
             } catch (err) { console.error("Error fetching history:", err); } finally { setLoading(false); }
         };
         fetchHistory();
@@ -374,15 +386,15 @@ const HistoryView = ({ userId, onClose, onLoadGame }) => {
     );
 };
 
-const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
+const PlayerPortal = ({ onClose, userId, savedPlayers }: any) => {
     const [name, setName] = useState('');
     const [hcp, setHcp] = useState('');
     const [imgUrl, setImgUrl] = useState('');
-    const [editingId, setEditingId] = useState(null);
+    const [editingId, setEditingId] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
-    const fileInputRef = useRef(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleFileChange = (e) => {
+    const handleFileChange = (e: any) => {
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
@@ -397,16 +409,16 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
                 if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } } else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
                 canvas.width = width;
                 canvas.height = height;
-                ctx.drawImage(img, 0, 0, width, height);
+                ctx?.drawImage(img, 0, 0, width, height);
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
                 setImgUrl(dataUrl);
             };
-            img.src = event.target.result;
+            img.src = event.target?.result as string;
         };
         reader.readAsDataURL(file);
     };
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = async (e: any) => {
         e.preventDefault();
         if (!name.trim()) return;
         setSubmitting(true);
@@ -421,13 +433,13 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
                 await addDoc(playersRef, playerData);
             }
             setName(''); setHcp(''); setImgUrl('');
-        } catch (err) { alert("Error saving player: " + err.message); } finally { setSubmitting(false); }
+        } catch (err: any) { alert("Error saving player: " + err.message); } finally { setSubmitting(false); }
     };
 
-    const handleEdit = (player) => { setName(player.name); setHcp(player.handicap); setImgUrl(player.avatarUrl || ''); setEditingId(player.id); };
+    const handleEdit = (player: any) => { setName(player.name); setHcp(player.handicap); setImgUrl(player.avatarUrl || ''); setEditingId(player.id); };
     const handleCancelEdit = () => { setName(''); setHcp(''); setImgUrl(''); setEditingId(null); };
-    const handleDelete = async (id) => {
-        if (confirm("Remove player from portal?")) { try { await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'saved_players', id)); } catch (err) { alert("Error deleting: " + err.message); } }
+    const handleDelete = async (id: string) => {
+        if (confirm("Remove player from portal?")) { try { await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'saved_players', id)); } catch (err: any) { alert("Error deleting: " + err.message); } }
     };
 
     return (
@@ -437,7 +449,7 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
                 <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
                     <div className="flex justify-between items-center mb-3"><h3 className="text-xs font-bold text-slate-500 uppercase">{editingId ? 'Edit Player' : 'Add New Player'}</h3>{editingId && (<button onClick={handleCancelEdit} className="text-[10px] text-red-400 hover:underline">Cancel</button>)}</div>
                     <div className="flex gap-3 items-start">
-                        <div className="relative group"><input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} /><button onClick={() => fileInputRef.current.click()} className="w-14 h-14 rounded-full bg-slate-800 border border-slate-600 flex items-center justify-center hover:border-blue-500 transition overflow-hidden">{imgUrl ? (<img src={imgUrl} alt="Preview" className="w-full h-full object-cover" />) : (<Camera size={20} className="text-slate-500 group-hover:text-blue-400" />)}</button>{imgUrl && (<button onClick={() => setImgUrl('')} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600"><X size={10}/></button>)}</div>
+                        <div className="relative group"><input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} /><button onClick={() => fileInputRef.current?.click()} className="w-14 h-14 rounded-full bg-slate-800 border border-slate-600 flex items-center justify-center hover:border-blue-500 transition overflow-hidden">{imgUrl ? (<img src={imgUrl} alt="Preview" className="w-full h-full object-cover" />) : (<Camera size={20} className="text-slate-500 group-hover:text-blue-400" />)}</button>{imgUrl && (<button onClick={() => setImgUrl('')} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600"><X size={10}/></button>)}</div>
                         <div className="flex-1 space-y-2">
                             <div className="flex gap-2"><input className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-blue-500 outline-none w-0" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} /><input type="number" className="w-16 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-blue-500 outline-none" placeholder="HCP" value={hcp} onChange={(e) => setHcp(e.target.value)} /></div>
                             <button type="button" onClick={handleSubmit} disabled={!name.trim() || submitting} className={`w-full text-white p-2 rounded-lg font-bold disabled:opacity-50 flex items-center justify-center ${editingId ? 'bg-yellow-600' : 'bg-blue-600'}`}>{submitting ? <Activity className="animate-spin" size={16}/> : (editingId ? 'Update Player' : 'Save Player')}</button>
@@ -446,7 +458,7 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
                 </div>
                 <div className="space-y-2">
                     <h3 className="text-xs font-bold text-slate-500 uppercase ml-1">Saved Players</h3>
-                    {savedPlayers.length === 0 ? <div className="text-center text-slate-600 py-8 text-sm">No players saved yet.</div> : savedPlayers.map(p => (
+                    {savedPlayers.length === 0 ? <div className="text-center text-slate-600 py-8 text-sm">No players saved yet.</div> : savedPlayers.map((p: any) => (
                             <div key={p.id} className={`bg-slate-900 border p-3 rounded-xl flex justify-between items-center ${editingId === p.id ? 'border-yellow-600/50 bg-yellow-900/10' : 'border-slate-800'}`}>
                                 <div className="flex items-center gap-3 overflow-hidden flex-1">{p.avatarUrl ? (<img src={p.avatarUrl} alt={p.name} className="w-10 h-10 rounded-full object-cover bg-slate-800 border border-slate-700 flex-shrink-0" />) : (<div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex-shrink-0 flex items-center justify-center text-slate-600"><User size={18}/></div>)}<div className="truncate pr-2"><div className="font-bold text-white truncate">{p.name}</div><div className="text-xs text-slate-500">HCP: {p.handicap}</div></div></div>
                                 <div className="flex gap-1 flex-shrink-0"><button onClick={() => handleEdit(p)} className="p-2 text-slate-400 hover:text-yellow-500 transition flex-shrink-0"><Edit size={16} /></button><button onClick={() => handleDelete(p.id)} className="p-2 text-slate-600 hover:text-red-500 transition flex-shrink-0"><Trash2 size={16} /></button></div>
@@ -459,7 +471,7 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
     );
 };
 
-const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput, handleJoinGame, courseName, setCourseName, startSetup, error, setShowPortal, setShowHistory, user, handleLogin, handleLogout, setShowInfo, savedPlayers }) => (
+const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput, handleJoinGame, courseName, setCourseName, startSetup, error, setShowPortal, setShowHistory, user, handleLogin, handleLogout, setShowInfo, savedPlayers }: any) => (
   <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-slate-950 text-white space-y-6">
     <div className="text-center mb-4">
       <div className="mb-2 relative z-10"><img src={CUSTOM_LOGO_URL} alt="Logo" className="w-48 h-48 mx-auto object-contain drop-shadow-2xl filter brightness-110" /></div>
@@ -489,7 +501,7 @@ const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput,
               <div className="relative">
                 <input type="text" className="w-full bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:border-blue-500 transition-colors text-white" value={playerName} onChange={(e) => setPlayerName(e.target.value)} placeholder="Guest Name" list="player-suggestions"/>
                 <datalist id="player-suggestions">
-                    {savedPlayers.map(p => <option key={p.id} value={p.name} />)}
+                    {savedPlayers.map((p: any) => <option key={p.id} value={p.name} />)}
                 </datalist>
                 {savedPlayers.length > 0 && <div className="absolute right-2 top-3 text-slate-500 pointer-events-none"><ChevronDown size={14}/></div>}
               </div>
@@ -502,13 +514,13 @@ const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput,
   </div>
 );
 
-const CourseBrowser = ({ onClose, onSelectCourse }) => {
+const CourseBrowser = ({ onClose, onSelectCourse }: any) => {
     const [step, setStep] = useState('clubs'); 
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [items, setItems] = useState([]);
-    const [selectedClub, setSelectedClub] = useState(null);
-    const [selectedCourse, setSelectedCourse] = useState(null);
+    const [items, setItems] = useState<any[]>([]);
+    const [selectedClub, setSelectedClub] = useState<any>(null);
+    const [selectedCourse, setSelectedCourse] = useState<any>(null);
 
     useEffect(() => {
         const fetchClubs = async () => {
@@ -522,7 +534,7 @@ const CourseBrowser = ({ onClose, onSelectCourse }) => {
         fetchClubs();
     }, []);
 
-    const handleClubSelect = async (club) => {
+    const handleClubSelect = async (club: any) => {
         setLoading(true);
         setSelectedClub(club);
         try {
@@ -534,7 +546,7 @@ const CourseBrowser = ({ onClose, onSelectCourse }) => {
         } catch (e) { console.error(e); } finally { setLoading(false); }
     };
 
-    const handleCourseSelect = async (course) => {
+    const handleCourseSelect = async (course: any) => {
         setLoading(true);
         setSelectedCourse(course);
         try {
@@ -545,7 +557,7 @@ const CourseBrowser = ({ onClose, onSelectCourse }) => {
         } catch (e) { console.error(e); } finally { setLoading(false); }
     };
 
-    const handleTeeSelect = async (tee) => {
+    const handleTeeSelect = async (tee: any) => {
         setLoading(true);
         try {
             const res = await fetch(`https://api.bthree.uk/golf/v1/markers/${tee.id}/holes`);
@@ -553,7 +565,7 @@ const CourseBrowser = ({ onClose, onSelectCourse }) => {
             const pars = new Array(18).fill(4);
             const si = new Array(18).fill(18);
             if (Array.isArray(holes)) {
-                holes.forEach(h => {
+                holes.forEach((h: any) => {
                     const idx = h.number - 1;
                     if (idx >= 0 && idx < 18) {
                         pars[idx] = h.par || 4;
@@ -615,25 +627,27 @@ const CourseBrowser = ({ onClose, onSelectCourse }) => {
     );
 };
 
-const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRating, pars, setPars, gameMode, setGameMode, setSi, si, playerName, setPlayerName, handicapIndex, setHandicapIndex, createGame, onCancel, savedPlayers, error, teamMode, setTeamMode, useHandicapDiff, setUseHandicapDiff, holesMode, setHolesMode }) => {
+const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRating, pars, setPars, gameMode, setGameMode, setSi, si, playerName, setPlayerName, handicapIndex, setHandicapIndex, createGame, onCancel, savedPlayers, error, teamMode, setTeamMode, useHandicapDiff, setUseHandicapDiff, holesMode, setHolesMode }: any) => {
   const [selectedFriends, setSelectedFriends] = useState(new Set());
   const [adhocName, setAdhocName] = useState('');
   const [adhocHcp, setAdhocHcp] = useState('');
-  const [adhocGuests, setAdhocGuests] = useState([]);
+  const [adhocGuests, setAdhocGuests] = useState<any[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [hostAvatar, setHostAvatar] = useState('');
   const [activeTab, setActiveTab] = useState('preset');
   const [showBrowser, setShowBrowser] = useState(false);
 
-  const handlePresetChange = (e) => {
+  const handlePresetChange = (e: any) => {
     const key = e.target.value;
+    // @ts-ignore
     if (key && PRESET_COURSES[key]) {
+      // @ts-ignore
       const c = PRESET_COURSES[key];
       setCourseName(c.name); setSlope(c.slope); setRating(c.rating); setPars(c.pars); if (c.si) setSi(c.si);
     }
   };
 
-  const updateHoleData = (index, type, value) => {
+  const updateHoleData = (index: number, type: string, value: string) => {
       const val = parseInt(value) || 0;
       if (type === 'par') {
           const newPars = [...pars];
@@ -646,26 +660,26 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
       }
   };
 
-  const toggleFriend = (id) => { const newSet = new Set(selectedFriends); if (newSet.has(id)) newSet.delete(id); else newSet.add(id); setSelectedFriends(newSet); };
-  const addAdhoc = (e) => { e.preventDefault(); if (!adhocName.trim()) return; const newGuest = { id: `temp_${Date.now()}`, name: adhocName, handicap: adhocHcp || 0 }; setAdhocGuests(prev => [...prev, newGuest]); setAdhocName(''); setAdhocHcp(''); };
-  const removeAdhoc = (id) => { setAdhocGuests(prev => prev.filter(g => g.id !== id)); };
+  const toggleFriend = (id: string) => { const newSet = new Set(selectedFriends); if (newSet.has(id)) newSet.delete(id); else newSet.add(id); setSelectedFriends(newSet); };
+  const addAdhoc = (e: any) => { e.preventDefault(); if (!adhocName.trim()) return; const newGuest = { id: `temp_${Date.now()}`, name: adhocName, handicap: adhocHcp || 0 }; setAdhocGuests(prev => [...prev, newGuest]); setAdhocName(''); setAdhocHcp(''); };
+  const removeAdhoc = (id: string) => { setAdhocGuests(prev => prev.filter(g => g.id !== id)); };
   const handleStartGame = async () => {
       setIsCreating(true);
       try { 
-          const portalFriends = savedPlayers.filter(p => selectedFriends.has(p.id)); 
+          const portalFriends = savedPlayers.filter((p: any) => selectedFriends.has(p.id)); 
           const fullRoster = [...portalFriends, ...adhocGuests]; 
           await createGame(fullRoster, hostAvatar); 
           // Note: createGame sets view to 'score' and loading to false internally via joinGameLogic
-      } catch(e) { 
+      } catch(e: any) { 
           alert("Error creating game: " + e.message); 
           setIsCreating(false); 
       }
   };
-  const ModeButton = ({ mode, icon: Icon, label }) => (<button onClick={() => setGameMode(mode)} className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${gameMode === mode ? 'border-emerald-500 bg-emerald-500/20 text-white' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-500'}`}><Icon size={20} className="mb-1" /><span className="text-[10px] font-bold uppercase">{label}</span></button>);
+  const ModeButton = ({ mode, icon: Icon, label }: any) => (<button onClick={() => setGameMode(mode)} className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${gameMode === mode ? 'border-emerald-500 bg-emerald-500/20 text-white' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-500'}`}><Icon size={20} className="mb-1" /><span className="text-[10px] font-bold uppercase">{label}</span></button>);
 
   return (
     <div className="min-h-screen bg-slate-950 text-white p-4 flex flex-col items-center">
-        {showBrowser && <CourseBrowser onClose={() => setShowBrowser(false)} onSelectCourse={(data) => { setCourseName(data.name); setPars(data.pars); setSi(data.si); setSlope(data.slope); setRating(data.rating); }} />}
+        {showBrowser && <CourseBrowser onClose={() => setShowBrowser(false)} onSelectCourse={(data: any) => { setCourseName(data.name); setPars(data.pars); setSi(data.si); setSlope(data.slope); setRating(data.rating); }} />}
         <h2 className="text-xl font-bold mb-4 flex items-center"><Settings size={20} className="mr-2"/> Game Setup</h2>
         {error && <div className="w-full max-w-md p-3 bg-red-500/20 border border-red-500/50 text-red-200 rounded-lg text-sm text-center mb-4 flex items-center justify-center animate-in fade-in"><AlertCircle size={16} className="mr-2"/>{String(error)}</div>}
         <div className="w-full max-w-md bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-6">
@@ -673,7 +687,7 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                 <div className="flex justify-between items-center mb-3">
                     <label className="text-xs font-bold text-emerald-400 uppercase flex items-center"><User size={12} className="mr-1"/> Host Player (You)</label>
                     {savedPlayers && savedPlayers.length > 0 && (
-                        <select className="bg-slate-800 text-xs text-blue-400 border border-slate-700 rounded px-2 py-1 outline-none max-w-[120px]" onChange={(e) => { const p = savedPlayers.find(sp => sp.id === e.target.value); if(p) { setPlayerName(p.name); setHandicapIndex(p.handicap); setHostAvatar(p.avatarUrl || ''); } }} value=""><option value="" disabled>Load Profile...</option>{savedPlayers.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}</select>
+                        <select className="bg-slate-800 text-xs text-blue-400 border border-slate-700 rounded px-2 py-1 outline-none max-w-[120px]" onChange={(e) => { const p = savedPlayers.find((sp: any) => sp.id === e.target.value); if(p) { setPlayerName(p.name); setHandicapIndex(p.handicap); setHostAvatar(p.avatarUrl || ''); } }} value=""><option value="" disabled>Load Profile...</option>{savedPlayers.map((p: any) => (<option key={p.id} value={p.id}>{p.name}</option>))}</select>
                     )}
                 </div>
                 <div className="flex gap-3">
@@ -693,7 +707,7 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                     <div className="space-y-1">
                         <div className="text-[10px] text-slate-500 uppercase font-bold">From Portal</div>
                         <div className="max-h-32 overflow-y-auto pr-1">
-                            {savedPlayers.map(p => (
+                            {savedPlayers.map((p: any) => (
                                 <button type="button" key={p.id} onClick={() => toggleFriend(p.id)} className={`w-full flex items-center justify-between p-2 rounded-lg border text-xs mb-1 transition-all ${selectedFriends.has(p.id) ? 'bg-emerald-600/20 border-emerald-600 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'}`}>
                                     <div className="flex items-center gap-2 overflow-hidden">
                                         {p.avatarUrl && <img src={p.avatarUrl} className="w-6 h-6 rounded-full object-cover" />}
@@ -710,7 +724,7 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                         <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Who's Playing?</div>
                         <div className="flex flex-wrap gap-2">
                             {playerName && <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded border border-emerald-500/30 flex items-center gap-1">{hostAvatar && <img src={hostAvatar} className="w-4 h-4 rounded-full"/>} {playerName} <UserCheck size={10} className="ml-1"/></span>}
-                            {savedPlayers.filter(p => selectedFriends.has(p.id)).map(p => <span key={p.id} className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded border border-slate-700 flex items-center gap-1">{p.avatarUrl && <img src={p.avatarUrl} className="w-4 h-4 rounded-full"/>}{p.name}</span>)}
+                            {savedPlayers.filter((p: any) => selectedFriends.has(p.id)).map((p: any) => <span key={p.id} className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded border border-slate-700 flex items-center gap-1">{p.avatarUrl && <img src={p.avatarUrl} className="w-4 h-4 rounded-full"/>}{p.name}</span>)}
                             {adhocGuests.map(g => <span key={g.id} className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded border border-blue-500/30 flex items-center group">{g.name} <button type="button" onClick={() => removeAdhoc(g.id)} className="ml-1 hover:text-white"><X size={10}/></button></span>)}
                         </div>
                     </div>
@@ -820,14 +834,14 @@ const ScoreView = ({
   currentHole, setCurrentHole, currentHoleScore, updateScore,
   activePars, myData, activeGameMode, activeSi, players, user,
   syncStatus, leaveGame, teamMode, gameSettings
-}) => {
+}: any) => {
   const holePar = activePars[currentHole - 1];
   const holeSi = activeSi ? activeSi[currentHole - 1] : (currentHole);
   const [showAllPlayers, setShowAllPlayers] = useState(false);
   const myGroup = myData.teeGroup;
   const relevantPlayers = useMemo(() => {
       if (showAllPlayers) return players;
-      if (myGroup) { const groupMembers = players.filter(p => p.teeGroup === myGroup); if (!groupMembers.find(p => p.userId === user.uid)) return [myData, ...groupMembers]; return groupMembers; }
+      if (myGroup) { const groupMembers = players.filter((p: any) => p.teeGroup === myGroup); if (!groupMembers.find((p: any) => p.userId === user.uid)) return [myData, ...groupMembers]; return groupMembers; }
       return players;
   }, [players, myGroup, showAllPlayers, user, myData]);
 
@@ -836,7 +850,7 @@ const ScoreView = ({
   let baselineHcp = 0;
   if (useDiff) {
       let min = 999;
-      players.forEach(p => { if(p.courseHandicap < min) min = p.courseHandicap; });
+      players.forEach((p: any) => { if(p.courseHandicap < min) min = p.courseHandicap; });
       if(min !== 999) baselineHcp = min;
   }
 
@@ -857,7 +871,7 @@ const ScoreView = ({
       <div className="flex flex-col h-full animate-in fade-in duration-300">
           <div className="flex items-center justify-between bg-slate-900 p-4 rounded-2xl shadow-lg border border-slate-800 mb-4">
               <button 
-                onClick={() => setCurrentHole(h => Math.max(startHole, h - 1))} 
+                onClick={() => setCurrentHole((h: number) => Math.max(startHole, h - 1))} 
                 disabled={currentHole === startHole}
                 className="p-3 bg-slate-800 rounded-xl text-slate-400 hover:text-white hover:bg-slate-700 active:scale-95 transition-all disabled:opacity-30"
               >
@@ -865,7 +879,7 @@ const ScoreView = ({
               </button>
               <div className="text-center"><h2 className="text-xs text-slate-500 font-bold uppercase tracking-widest">Hole {currentHole}</h2><div className="flex items-center justify-center space-x-2 text-sm text-slate-400"><span>Par {holePar}</span><span className="text-slate-600">•</span><span>SI {holeSi}</span></div></div>
               <button 
-                onClick={() => setCurrentHole(h => Math.min(endHole, h + 1))} 
+                onClick={() => setCurrentHole((h: number) => Math.min(endHole, h + 1))} 
                 disabled={currentHole === endHole}
                 className="p-3 bg-slate-800 rounded-xl text-slate-400 hover:text-white hover:bg-slate-700 active:scale-95 transition-all disabled:opacity-30"
               >
@@ -874,7 +888,7 @@ const ScoreView = ({
           </div>
           <div className="flex justify-between items-center mb-4 px-2"><div className="text-xs font-bold text-slate-500 uppercase">{myGroup && !showAllPlayers ? `Group ${myGroup}` : 'All Players'}</div>{players.length > relevantPlayers.length || showAllPlayers ? (<button onClick={() => setShowAllPlayers(!showAllPlayers)} className="flex items-center text-xs text-blue-400 hover:text-white transition">{showAllPlayers ? <EyeOff size={14} className="mr-1"/> : <Eye size={14} className="mr-1"/>}{showAllPlayers ? 'Show Group' : 'Show All'}</button>) : null}</div>
           <div className="flex-1 overflow-y-auto space-y-3 pb-20">
-              {relevantPlayers.map(p => {
+              {relevantPlayers.map((p: any) => {
                   const score = p.scores?.[currentHole];
                   const isNR = score === 'NR';
                   const displayVal = isNR ? 'NR' : (score || holePar);
@@ -943,7 +957,7 @@ const ScoreView = ({
   );
 };
 
-const LeaderboardView = ({ leaderboardData, user, activeGameMode, teamMode, gameSettings }) => (
+const LeaderboardView = ({ leaderboardData, user, activeGameMode, teamMode, gameSettings }: any) => (
   <div className="flex flex-col h-full animate-in slide-in-from-right duration-300">
       <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-xl flex-1 flex flex-col">
           <div className="bg-slate-950 p-3 border-b border-slate-800 flex text-[10px] font-bold text-slate-500 uppercase tracking-wider">
@@ -954,7 +968,7 @@ const LeaderboardView = ({ leaderboardData, user, activeGameMode, teamMode, game
               {activeGameMode === 'stroke' && <><div className="w-12 text-center">Gross</div><div className="w-12 text-center">Net</div></>}
           </div>
           <div className="overflow-y-auto flex-1">
-              {leaderboardData.map((entry, index) => (
+              {leaderboardData.map((entry: any, index: number) => (
                   <div key={entry.id} className={`flex items-center p-3 border-b border-slate-800/50 ${entry.isUser ? 'bg-emerald-900/10' : ''}`}>
                       <div className="w-8 text-center font-mono text-slate-600 text-sm">{index + 1}</div>
                       <div className="flex-1 pl-2 truncate relative flex items-center">
@@ -980,7 +994,7 @@ const LeaderboardView = ({ leaderboardData, user, activeGameMode, teamMode, game
   </div>
 );
 
-const ScorecardView = ({ players, activePars, holesMode, activeGameMode, activeSi }) => {
+const ScorecardView = ({ players, activePars, holesMode, activeGameMode, activeSi }: any) => {
     // Determine hole range
     const startHole = holesMode === 'back9' ? 10 : 1;
     const endHole = holesMode === 'front9' ? 9 : 18;
@@ -1004,7 +1018,7 @@ const ScorecardView = ({ players, activePars, holesMode, activeGameMode, activeS
                         </tr>
                     </thead>
                     <tbody>
-                        {players.map((p, idx) => {
+                        {players.map((p: any, idx: number) => {
                             let totalGross = 0;
                             let totalPoints = 0;
                             
@@ -1022,7 +1036,7 @@ const ScorecardView = ({ players, activePars, holesMode, activeGameMode, activeS
                                         
                                         let cellClass = "";
                                         let textClass = "text-slate-300";
-                                        let displayValue = "-";
+                                        let displayValue: any = "-";
                                         let points = 0;
 
                                         if (score && score !== 'NR') {
@@ -1066,7 +1080,7 @@ const ScorecardView = ({ players, activePars, holesMode, activeGameMode, activeS
                                     })}
                                     <td className="px-2 py-3 text-center border-b border-slate-800 border-l border-slate-800">
                                         <div className="font-bold text-white">
-                                            {totalGross > 0 ? (totalGross - (activePars.slice(startHole-1, endHole).reduce((a,b)=>a+b,0) || 0) > 0 ? `+${totalGross - activePars.slice(startHole-1, endHole).reduce((a,b)=>a+b,0)}` : totalGross - activePars.slice(startHole-1, endHole).reduce((a,b)=>a+b,0)) : '-'}
+                                            {totalGross > 0 ? (totalGross - (activePars.slice(startHole-1, endHole).reduce((a: any,b: any)=>a+b,0) || 0) > 0 ? `+${totalGross - activePars.slice(startHole-1, endHole).reduce((a: any,b: any)=>a+b,0)}` : totalGross - activePars.slice(startHole-1, endHole).reduce((a: any,b: any)=>a+b,0)) : '-'}
                                         </div>
                                         <div className="text-[10px] text-emerald-400 font-bold font-mono mt-1">
                                             {totalPoints} pts
@@ -1092,15 +1106,15 @@ const ScorecardView = ({ players, activePars, holesMode, activeGameMode, activeS
 // --- Main App Component ---
 
 export default function App() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<any>(null);
   const [gameId, setGameId] = useState('');
   const [playerName, setPlayerName] = useState('');
   const [handicapIndex, setHandicapIndex] = useState('');
-  const [savedPlayers, setSavedPlayers] = useState([]);
-  const [syncStatus, setSyncStatus] = useState('saved'); // saved, saving, error
+  const [savedPlayers, setSavedPlayers] = useState<any[]>([]);
+  const [syncStatus, setSyncStatus] = useState('saved'); 
   
-  const [players, setPlayers] = useState([]);
-  const [gameSettings, setGameSettings] = useState(null);
+  const [players, setPlayers] = useState<any[]>([]);
+  const [gameSettings, setGameSettings] = useState<any>(null);
   
   const [view, setView] = useState('lobby'); 
   const [currentHole, setCurrentHole] = useState(1);
@@ -1111,7 +1125,7 @@ export default function App() {
   const [showTeeSheet, setShowTeeSheet] = useState(false);
   const [showPortal, setShowPortal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [showInfo, setShowInfo] = useState(false); // Added Info state
+  const [showInfo, setShowInfo] = useState(false); 
   
   const [newGuestName, setNewGuestName] = useState('');
   const [newGuestHcp, setNewGuestHcp] = useState('');
@@ -1122,9 +1136,9 @@ export default function App() {
   const [pars, setPars] = useState(DEFAULT_PARS);
   const [si, setSi] = useState(DEFAULT_SI);
   const [gameMode, setGameMode] = useState('stroke'); 
-  const [teamMode, setTeamMode] = useState('singles'); // 'singles' or 'pairs' 
+  const [teamMode, setTeamMode] = useState('singles'); 
   const [useHandicapDiff, setUseHandicapDiff] = useState(false);
-  const [holesMode, setHolesMode] = useState('18'); // '18', 'front9', 'back9'
+  const [holesMode, setHolesMode] = useState('18');
 
   // ... existing useEffects and handlers ...
   // Re-adding the missing handlers referenced in SetupView: setSi is passed as prop
@@ -1132,13 +1146,12 @@ export default function App() {
   useEffect(() => {
     const initAuth = async () => {
       try { 
-        await setPersistence(auth, browserLocalPersistence); 
+        // Removed explicit browserLocalPersistence to use default behavior (fixes production build issues)
         // Only try custom token if the variable actually exists and is not empty
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { 
             await signInWithCustomToken(auth, __initial_auth_token); 
         } else {
             // If no custom token, we wait for onAuthStateChanged or trigger anon sign-in
-            // This prevents a race condition or double-init
         }
       } catch (err) { 
           console.error("Auth init error", err); 
@@ -1165,7 +1178,13 @@ export default function App() {
         }
       } else {
         // If not authenticated, sign in anonymously
-        try { await signInAnonymously(auth); } catch (e) { console.error("Anon sign in failed", e); setLoading(false); }
+        try { 
+            await signInAnonymously(auth); 
+        } catch (e) { 
+            console.error("Anon sign in failed", e); 
+            // Crucial fix: Ensure loading stops even if auth fails so the user sees something (e.g. Lobby)
+            setLoading(false); 
+        }
       }
     });
     return () => unsubscribe();
@@ -1175,9 +1194,9 @@ export default function App() {
       if (!user) return;
       const q = query(collection(db, 'artifacts', appId, 'users', user.uid, 'saved_players'));
       const unsubscribe = onSnapshot(q, (snapshot) => { 
-          const sp = []; 
+          const sp: any[] = []; 
           snapshot.forEach(doc => sp.push({id: doc.id, ...doc.data()})); 
-          sp.sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically
+          sp.sort((a, b) => a.name.localeCompare(b.name)); 
           setSavedPlayers(sp); 
       }, (err) => { console.error("Error fetching players:", err); });
       return () => unsubscribe();
@@ -1201,7 +1220,7 @@ export default function App() {
     
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME), where('gameId', '==', gameId.toUpperCase()), where('type', '==', 'player'));
     const unsubPlayers = onSnapshot(q, (snapshot) => { 
-        const playerData = []; 
+        const playerData: any[] = []; 
         snapshot.forEach((doc) => { playerData.push({ id: doc.id, ...doc.data() }); }); 
         setPlayers(playerData); 
     }, (err) => console.error("Players snapshot error:", err));
@@ -1211,7 +1230,7 @@ export default function App() {
 
   const startSetup = () => { if (!courseName.trim()) { setError("Name the game first"); return; } setView('setup'); };
 
-  const createGame = async (friendsToAdd = [], hostAvatarUrl = '') => {
+  const createGame = async (friendsToAdd: any[] = [], hostAvatarUrl = '') => {
       if (!playerName) { throw new Error("Host name required"); }
       const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
       const settingsId = `SETTINGS_${newCode}`;
@@ -1255,7 +1274,7 @@ export default function App() {
     await joinGameLogic(code, settings.courseName, settings.slope, settings.rating, settings.totalPar, '', settings.holesMode);
   };
 
-  const joinGameLogic = async (code, cName, cSlope, cRating, cTotalPar, avatarUrl = '', hMode = '18') => {
+  const joinGameLogic = async (code: string, cName: string, cSlope: any, cRating: any, cTotalPar: any, avatarUrl = '', hMode = '18') => {
     setLoading(true);
     setGameId(code);
     localStorage.setItem('golf_game_id', code);
@@ -1277,17 +1296,17 @@ export default function App() {
     setLoading(false);
   };
 
-  const updateScore = async (targetUserId, hole, strokes) => {
+  const updateScore = async (targetUserId: string, hole: number, strokes: any) => {
     if (!user || !gameId) return;
     setSyncStatus('saving');
     const playerDocId = `${gameId}_${targetUserId}`;
-    const targetPlayer = players.find(p => p.userId === targetUserId) || {};
+    const targetPlayer = players.find((p: any) => p.userId === targetUserId) || {};
     const currentScores = targetPlayer.scores || {};
     const newScores = { ...currentScores, [hole]: strokes };
     try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, playerDocId), { scores: newScores }, { merge: true }); setSyncStatus('saved'); } catch (e) { console.error("Sync error:", e); setSyncStatus('error'); }
   };
 
-  const updatePlayerGroup = async (playerId, groupNum) => {
+  const updatePlayerGroup = async (playerId: string, groupNum: number | null) => {
       if (!playerId) return;
       const playerDoc = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, playerId);
       try {
@@ -1298,7 +1317,7 @@ export default function App() {
   const leaveGame = () => { setShowExitModal(true); };
   const confirmLeave = () => { localStorage.removeItem('golf_game_id'); setGameId(''); setPlayers([]); setGameSettings(null); setView('lobby'); setJoinCodeInput(''); setShowExitModal(false); };
   
-  const loadHistoricalGame = (oldGameId) => { 
+  const loadHistoricalGame = (oldGameId: string) => { 
       if(!oldGameId) return; 
       // Reset critical state to prevent UI glitches during transition
       setLoading(true);
@@ -1332,7 +1351,7 @@ export default function App() {
       setNewGuestName(''); setNewGuestHcp('');
   };
 
-  const randomizeGroups = async (groupSize) => {
+  const randomizeGroups = async (groupSize: number) => {
       if (players.length === 0) return;
       const shuffled = [...players];
       for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
@@ -1341,7 +1360,7 @@ export default function App() {
       await batch.commit();
   };
   
-  const handleLogin = async () => { const provider = new GoogleAuthProvider(); try { if (user && user.isAnonymous) { await linkWithPopup(user, provider); } else { await signInWithPopup(auth, provider); } } catch (error) { if (error.code === 'auth/credential-already-in-use') { await signInWithPopup(auth, provider); } else if (error.code === 'auth/popup-closed-by-user') { /* Ignore */ } else { alert("Login failed: " + error.message + "\nCheck domain whitelist in Firebase."); } } };
+  const handleLogin = async () => { const provider = new GoogleAuthProvider(); try { if (user && user.isAnonymous) { await linkWithPopup(user, provider); } else { await signInWithPopup(auth, provider); } } catch (error: any) { if (error.code === 'auth/credential-already-in-use') { await signInWithPopup(auth, provider); } else if (error.code === 'auth/popup-closed-by-user') { /* Ignore */ } else { alert("Login failed: " + error.message + "\nCheck domain whitelist in Firebase."); } } };
   const handleLogout = async () => { await signOut(auth); await signInAnonymously(auth); };
 
   if (loading) return (
