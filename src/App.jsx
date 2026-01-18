@@ -9,8 +9,8 @@ import {
   signInWithPopup,
   linkWithPopup,
   signOut,
-  setPersistence,
-  browserLocalPersistence
+  setPersistence
+  // browserLocalPersistence REMOVED entirely to fix runtime error
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -61,7 +61,7 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
-  History,
+  History as HistoryIcon, 
   Calendar,
   Check,    
   Loader2,  
@@ -81,11 +81,10 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-const APP_VERSION = "v3.7.5 (Jan 13th 2026, 14:01AM)";
+const APP_VERSION = "v3.8.10 (Persistence & TS Fix)";
 // Note: Local images like "/NilsPoisGolfInAppLogo.png" won't load in this preview. 
 // I've kept the remote URL as a fallback so you can see the UI.
-//const CUSTOM_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/1165/1165187.png"; 
-const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
+const CUSTOM_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/1165/1165187.png"; 
 
 const APP_ID = "nils-pois-golf-v5"; 
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
@@ -152,6 +151,13 @@ const PRESET_COURSES = {
     pars: [4, 4, 3, 4, 4, 5, 4, 4, 5, 3, 4, 3, 5, 4, 4, 5, 4, 3],
     si:   [7, 3, 15, 5, 9, 11, 13, 1, 17, 18, 8, 4, 12, 2, 6, 16, 10, 14]
   },
+  'moorpark_high_red': {
+    name: "Moor Park - High (Ladies)",
+    slope: 129,
+    rating: 68.5,
+    pars: [4, 5, 3, 5, 4, 5, 4, 4, 4, 3, 4, 3, 5, 4, 4, 5, 4, 3],
+    si:   [9, 11, 17, 5, 13, 3, 15, 1, 7, 16, 4, 10, 14, 2, 8, 12, 6, 18]
+  },
   'moorpark_west_white': {
     name: "Moor Park - West (White)",
     slope: 121,
@@ -165,24 +171,51 @@ const PRESET_COURSES = {
     rating: 67.7,
     pars: [4, 3, 4, 3, 4, 3, 4, 4, 3, 4, 4, 5, 3, 5, 4, 4, 4, 4],
     si:   [11, 9, 5, 15, 3, 17, 1, 7, 13, 14, 6, 12, 16, 4, 2, 8, 10, 18]
+  },
+  'moorpark_west_red': {
+    name: "Moor Park - West (Ladies)",
+    slope: 120,
+    rating: 70.2,
+    pars: [4, 3, 4, 3, 5, 3, 5, 4, 3, 3, 4, 5, 3, 5, 4, 4, 4, 4],
+    si:   [11, 13, 3, 15, 7, 17, 5, 1, 9, 4, 10, 12, 16, 8, 2, 6, 14, 18]
   }
 };
 
 // --- Firebase Initialization ---
-const firebaseConfig = {
-  apiKey: "AIzaSyCllkJmbTVFmCIzkyIHXIO24FKlJ9i4VQg",
-  authDomain: "nilspoisgolf.firebaseapp.com",
-  projectId: "nilspoisgolf",
-  storageBucket: "nilspoisgolf.firebasestorage.app",
-  messagingSenderId: "606422939116",
-  appId: "1:606422939116:web:d2a51bd4a1d5606c787cc9",
-  measurementId: "G-VZ8X10ZEC4"
+const getFirebaseConfig = () => {
+  try {
+    // Check for global window variable using bracket notation to avoid TS/JS issues
+    if (typeof window !== 'undefined' && window['__firebase_config']) {
+      return JSON.parse(window['__firebase_config']);
+    }
+    // Check for the variable directly (Canvas environment)
+    if (typeof __firebase_config !== 'undefined') {
+      return JSON.parse(__firebase_config);
+    }
+  } catch (e) {
+    // console.log("Using fallback config");
+  }
+  
+  // Fallback for Vercel / Production
+  return {
+    apiKey: "AIzaSyCllkJmbTVFmCIzkyIHXIO24FKlJ9i4VQg",
+    authDomain: "nilspoisgolf.firebaseapp.com",
+    projectId: "nilspoisgolf",
+    storageBucket: "nilspoisgolf.firebasestorage.app",
+    messagingSenderId: "606422939116",
+    appId: "1:606422939116:web:d2a51bd4a1d5606c787cc9",
+    measurementId: "G-VZ8X10ZEC4"
+  };
 };
+
+const firebaseConfig = getFirebaseConfig();
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : APP_ID;
 
 // --- Helper Functions ---
+// Removed TypeScript type annotations for JS compatibility
 const calculateNetScore = (gross, holeIdx, ch, siList) => {
     if (gross === 'NR' || !gross) return 'NR';
     const holeSi = siList[holeIdx];
@@ -321,7 +354,7 @@ const HistoryView = ({ userId, onClose, onLoadGame }) => {
                     return null;
                 });
                 const results = await Promise.all(promises);
-                setHistory(results.filter(g => g !== null).sort((a, b) => new Date(b.date) - new Date(a.date)));
+                setHistory(results.filter(g => g !== null).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
             } catch (err) { console.error("Error fetching history:", err); } finally { setLoading(false); }
         };
         fetchHistory();
@@ -330,7 +363,7 @@ const HistoryView = ({ userId, onClose, onLoadGame }) => {
     return (
         <div className="fixed inset-0 bg-slate-950 z-[60] flex flex-col animate-in slide-in-from-bottom duration-300">
             <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900">
-                <h3 className="font-bold text-white flex items-center text-lg"><History size={20} className="mr-2 text-purple-400" /> Game History</h3>
+                <h3 className="font-bold text-white flex items-center text-lg"><HistoryIcon size={20} className="mr-2 text-purple-400" /> Game History</h3>
                 <button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X size={20} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -424,7 +457,7 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
                 </div>
                 <div className="space-y-2">
                     <h3 className="text-xs font-bold text-slate-500 uppercase ml-1">Saved Players</h3>
-                    {savedPlayers.length === 0 ? <div className="text-center text-slate-600 py-8 text-sm">No players saved yet.</div> : savedPlayers.map(p => (
+                    {savedPlayers.length === 0 ? <div className="text-center text-slate-600 py-8 text-sm">No players saved yet.</div> : savedPlayers.map((p) => (
                             <div key={p.id} className={`bg-slate-900 border p-3 rounded-xl flex justify-between items-center ${editingId === p.id ? 'border-yellow-600/50 bg-yellow-900/10' : 'border-slate-800'}`}>
                                 <div className="flex items-center gap-3 overflow-hidden flex-1">{p.avatarUrl ? (<img src={p.avatarUrl} alt={p.name} className="w-10 h-10 rounded-full object-cover bg-slate-800 border border-slate-700 flex-shrink-0" />) : (<div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex-shrink-0 flex items-center justify-center text-slate-600"><User size={18}/></div>)}<div className="truncate pr-2"><div className="font-bold text-white truncate">{p.name}</div><div className="text-xs text-slate-500">HCP: {p.handicap}</div></div></div>
                                 <div className="flex gap-1 flex-shrink-0"><button onClick={() => handleEdit(p)} className="p-2 text-slate-400 hover:text-yellow-500 transition flex-shrink-0"><Edit size={16} /></button><button onClick={() => handleDelete(p.id)} className="p-2 text-slate-600 hover:text-red-500 transition flex-shrink-0"><Trash2 size={16} /></button></div>
@@ -456,7 +489,7 @@ const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput,
     </div>
     <div className="w-full max-w-sm grid grid-cols-3 gap-2">
         <button onClick={() => setShowPortal(true)} className="bg-slate-900/60 hover:bg-slate-800/80 backdrop-blur-sm border border-white/5 p-3 rounded-xl flex flex-col items-center justify-center group transition-all shadow-lg"><div className="bg-blue-500/20 p-2 rounded-lg text-blue-400 mb-1 group-hover:bg-blue-500 group-hover:text-white transition-colors"><Contact size={18} /></div><div className="font-bold text-[10px] text-slate-300">Players</div></button>
-        <button onClick={() => setShowHistory(true)} className="bg-slate-900/60 hover:bg-slate-800/80 backdrop-blur-sm border border-white/5 p-3 rounded-xl flex flex-col items-center justify-center group transition-all shadow-lg"><div className="bg-purple-500/20 p-2 rounded-lg text-purple-400 mb-1 group-hover:bg-purple-500 group-hover:text-white transition-colors"><History size={18} /></div><div className="font-bold text-[10px] text-slate-300">History</div></button>
+        <button onClick={() => setShowHistory(true)} className="bg-slate-900/60 hover:bg-slate-800/80 backdrop-blur-sm border border-white/5 p-3 rounded-xl flex flex-col items-center justify-center group transition-all shadow-lg"><div className="bg-purple-500/20 p-2 rounded-lg text-purple-400 mb-1 group-hover:bg-purple-500 group-hover:text-white transition-colors"><HistoryIcon size={18} /></div><div className="font-bold text-[10px] text-slate-300">History</div></button>
         <button onClick={() => setShowInfo(true)} className="bg-slate-900/60 hover:bg-slate-800/80 backdrop-blur-sm border border-white/5 p-3 rounded-xl flex flex-col items-center justify-center group transition-all shadow-lg"><div className="bg-emerald-500/20 p-2 rounded-lg text-emerald-400 mb-1 group-hover:bg-emerald-500 group-hover:text-white transition-colors"><Info size={18} /></div><div className="font-bold text-[10px] text-slate-300">Info</div></button>
     </div>
     <div className="w-full max-w-sm relative py-2"><div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t border-white/10"></div></div><div className="relative flex justify-center"><span className="bg-black/40 backdrop-blur px-2 text-xs text-slate-400 uppercase tracking-widest rounded">Or Join Existing</span></div></div>
@@ -467,7 +500,7 @@ const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput,
               <div className="relative">
                 <input type="text" className="w-full bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:border-blue-500 transition-colors text-white" value={playerName} onChange={(e) => setPlayerName(e.target.value)} placeholder="Guest Name" list="player-suggestions"/>
                 <datalist id="player-suggestions">
-                    {savedPlayers.map(p => <option key={p.id} value={p.name} />)}
+                    {savedPlayers.map((p) => <option key={p.id} value={p.name} />)}
                 </datalist>
                 {savedPlayers.length > 0 && <div className="absolute right-2 top-3 text-slate-500 pointer-events-none"><ChevronDown size={14}/></div>}
               </div>
@@ -480,6 +513,119 @@ const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput,
   </div>
 );
 
+const CourseBrowser = ({ onClose, onSelectCourse }) => {
+    const [step, setStep] = useState('clubs'); 
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [items, setItems] = useState([]);
+    const [selectedClub, setSelectedClub] = useState(null);
+    const [selectedCourse, setSelectedCourse] = useState(null);
+
+    useEffect(() => {
+        const fetchClubs = async () => {
+            try {
+                const res = await fetch('https://api.bthree.uk/golf/v1/clubs');
+                if (!res.ok) throw new Error("API Error");
+                const data = await res.json();
+                setItems(data || []);
+            } catch (e) { console.error(e); setItems([]); } finally { setLoading(false); }
+        };
+        fetchClubs();
+    }, []);
+
+    const handleClubSelect = async (club) => {
+        setLoading(true);
+        setSelectedClub(club);
+        try {
+            const res = await fetch(`https://api.bthree.uk/golf/v1/clubs/${club.id}/courses`);
+            const data = await res.json();
+            setItems(data || []);
+            setStep('courses');
+            setSearchTerm('');
+        } catch (e) { console.error(e); } finally { setLoading(false); }
+    };
+
+    const handleCourseSelect = async (course) => {
+        setLoading(true);
+        setSelectedCourse(course);
+        try {
+            const res = await fetch(`https://api.bthree.uk/golf/v1/courses/${course.id}/markers`);
+            const data = await res.json();
+            setItems(data || []);
+            setStep('tees');
+        } catch (e) { console.error(e); } finally { setLoading(false); }
+    };
+
+    const handleTeeSelect = async (tee) => {
+        setLoading(true);
+        try {
+            const res = await fetch(`https://api.bthree.uk/golf/v1/markers/${tee.id}/holes`);
+            const holes = await res.json();
+            const pars = new Array(18).fill(4);
+            const si = new Array(18).fill(18);
+            if (Array.isArray(holes)) {
+                holes.forEach((h) => {
+                    const idx = h.number - 1;
+                    if (idx >= 0 && idx < 18) {
+                        pars[idx] = h.par || 4;
+                        si[idx] = h.stroke_index || (idx + 1);
+                    }
+                });
+            }
+            // Auto-populate slope/rating from tee object if available
+            // Default to 113/72 if not found
+            const slope = tee.slope || 113;
+            const rating = tee.rating || 72;
+            onSelectCourse({ 
+                name: `${selectedClub.name} - ${tee.colour}`, 
+                pars, 
+                si, 
+                slope, 
+                rating 
+            });
+            onClose();
+        } catch (e) { alert("Could not load data."); } finally { setLoading(false); }
+    };
+
+    const filteredItems = items.filter(i => {
+        const name = i.name || i.colour || '';
+        return name.toLowerCase().includes(searchTerm.toLowerCase());
+    });
+
+    return (
+        <div className="fixed inset-0 bg-slate-950 z-[60] flex flex-col animate-in fade-in duration-200">
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900">
+                <h3 className="font-bold text-white flex items-center">
+                    <Globe size={18} className="mr-2 text-blue-400" />
+                    {step === 'clubs' && "Select Club"}
+                    {step === 'courses' && selectedClub?.name}
+                    {step === 'tees' && selectedCourse?.name}
+                </h3>
+                <button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X size={20} /></button>
+            </div>
+            <div className="p-2 bg-slate-900 border-b border-slate-800">
+                <div className="flex bg-slate-800 rounded-lg p-2 items-center">
+                    <Search size={16} className="text-slate-500 mr-2" />
+                    <input className="bg-transparent flex-1 text-sm text-white outline-none placeholder:text-slate-600" placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} autoFocus />
+                </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                {loading ? <div className="flex justify-center pt-10 text-slate-500"><DownloadCloud className="animate-bounce" /></div> : filteredItems.map(item => (
+                        <button key={item.id} onClick={() => {
+                                if (step === 'clubs') handleClubSelect(item);
+                                if (step === 'courses') handleCourseSelect(item);
+                                if (step === 'tees') handleTeeSelect(item);
+                            }} className="w-full text-left p-4 bg-slate-900/50 border border-slate-800 rounded-xl hover:bg-slate-800 hover:border-slate-700 transition flex justify-between items-center group">
+                            <span className="font-medium text-slate-200">{item.name || item.colour}</span>
+                            <ChevronRight size={16} className="text-slate-600 group-hover:text-blue-400" />
+                        </button>
+                    ))
+                }
+            </div>
+        </div>
+    );
+};
+
 const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRating, pars, setPars, gameMode, setGameMode, setSi, si, playerName, setPlayerName, handicapIndex, setHandicapIndex, createGame, onCancel, savedPlayers, error, teamMode, setTeamMode, useHandicapDiff, setUseHandicapDiff, holesMode, setHolesMode }) => {
   const [selectedFriends, setSelectedFriends] = useState(new Set());
   const [adhocName, setAdhocName] = useState('');
@@ -488,6 +634,7 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
   const [isCreating, setIsCreating] = useState(false);
   const [hostAvatar, setHostAvatar] = useState('');
   const [activeTab, setActiveTab] = useState('preset');
+  const [showBrowser, setShowBrowser] = useState(false);
 
   const handlePresetChange = (e) => {
     const key = e.target.value;
@@ -515,12 +662,21 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
   const removeAdhoc = (id) => { setAdhocGuests(prev => prev.filter(g => g.id !== id)); };
   const handleStartGame = async () => {
       setIsCreating(true);
-      try { const portalFriends = savedPlayers.filter(p => selectedFriends.has(p.id)); const fullRoster = [...portalFriends, ...adhocGuests]; await createGame(fullRoster, hostAvatar); } catch(e) { alert("Error creating game: " + e.message); setIsCreating(false); }
+      try { 
+          const portalFriends = savedPlayers.filter((p) => selectedFriends.has(p.id)); 
+          const fullRoster = [...portalFriends, ...adhocGuests]; 
+          await createGame(fullRoster, hostAvatar); 
+          // Note: createGame sets view to 'score' and loading to false internally via joinGameLogic
+      } catch(e) { 
+          alert("Error creating game: " + e.message); 
+          setIsCreating(false); 
+      }
   };
   const ModeButton = ({ mode, icon: Icon, label }) => (<button onClick={() => setGameMode(mode)} className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${gameMode === mode ? 'border-emerald-500 bg-emerald-500/20 text-white' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-500'}`}><Icon size={20} className="mb-1" /><span className="text-[10px] font-bold uppercase">{label}</span></button>);
 
   return (
     <div className="min-h-screen bg-slate-950 text-white p-4 flex flex-col items-center">
+        {showBrowser && <CourseBrowser onClose={() => setShowBrowser(false)} onSelectCourse={(data) => { setCourseName(data.name); setPars(data.pars); setSi(data.si); setSlope(data.slope); setRating(data.rating); }} />}
         <h2 className="text-xl font-bold mb-4 flex items-center"><Settings size={20} className="mr-2"/> Game Setup</h2>
         {error && <div className="w-full max-w-md p-3 bg-red-500/20 border border-red-500/50 text-red-200 rounded-lg text-sm text-center mb-4 flex items-center justify-center animate-in fade-in"><AlertCircle size={16} className="mr-2"/>{String(error)}</div>}
         <div className="w-full max-w-md bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-6">
@@ -528,7 +684,7 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                 <div className="flex justify-between items-center mb-3">
                     <label className="text-xs font-bold text-emerald-400 uppercase flex items-center"><User size={12} className="mr-1"/> Host Player (You)</label>
                     {savedPlayers && savedPlayers.length > 0 && (
-                        <select className="bg-slate-800 text-xs text-blue-400 border border-slate-700 rounded px-2 py-1 outline-none max-w-[120px]" onChange={(e) => { const p = savedPlayers.find(sp => sp.id === e.target.value); if(p) { setPlayerName(p.name); setHandicapIndex(p.handicap); setHostAvatar(p.avatarUrl || ''); } }} value=""><option value="" disabled>Load Profile...</option>{savedPlayers.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}</select>
+                        <select className="bg-slate-800 text-xs text-blue-400 border border-slate-700 rounded px-2 py-1 outline-none max-w-[120px]" onChange={(e) => { const p = savedPlayers.find((sp) => sp.id === e.target.value); if(p) { setPlayerName(p.name); setHandicapIndex(p.handicap); setHostAvatar(p.avatarUrl || ''); } }} value=""><option value="" disabled>Load Profile...</option>{savedPlayers.map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}</select>
                     )}
                 </div>
                 <div className="flex gap-3">
@@ -548,7 +704,7 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                     <div className="space-y-1">
                         <div className="text-[10px] text-slate-500 uppercase font-bold">From Portal</div>
                         <div className="max-h-32 overflow-y-auto pr-1">
-                            {savedPlayers.map(p => (
+                            {savedPlayers.map((p) => (
                                 <button type="button" key={p.id} onClick={() => toggleFriend(p.id)} className={`w-full flex items-center justify-between p-2 rounded-lg border text-xs mb-1 transition-all ${selectedFriends.has(p.id) ? 'bg-emerald-600/20 border-emerald-600 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'}`}>
                                     <div className="flex items-center gap-2 overflow-hidden">
                                         {p.avatarUrl && <img src={p.avatarUrl} className="w-6 h-6 rounded-full object-cover" />}
@@ -565,8 +721,8 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                         <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Who's Playing?</div>
                         <div className="flex flex-wrap gap-2">
                             {playerName && <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded border border-emerald-500/30 flex items-center gap-1">{hostAvatar && <img src={hostAvatar} className="w-4 h-4 rounded-full"/>} {playerName} <UserCheck size={10} className="ml-1"/></span>}
-                            {savedPlayers.filter(p => selectedFriends.has(p.id)).map(p => <span key={p.id} className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded border border-slate-700 flex items-center gap-1">{p.avatarUrl && <img src={p.avatarUrl} className="w-4 h-4 rounded-full"/>}{p.name}</span>)}
-                            {adhocGuests.map(g => <span key={g.id} className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded border border-blue-500/30 flex items-center group">{g.name} <button type="button" onClick={() => removeAdhoc(g.id)} className="ml-1 hover:text-white"><X size={10}/></button></span>)}
+                            {savedPlayers.filter((p) => selectedFriends.has(p.id)).map((p) => <span key={p.id} className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded border border-slate-700 flex items-center gap-1">{p.avatarUrl && <img src={p.avatarUrl} className="w-4 h-4 rounded-full"/>}{p.name}</span>)}
+                            {adhocGuests.map((g) => <span key={g.id} className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded border border-blue-500/30 flex items-center group">{g.name} <button type="button" onClick={() => removeAdhoc(g.id)} className="ml-1 hover:text-white"><X size={10}/></button></span>)}
                         </div>
                     </div>
                 )}
@@ -582,22 +738,30 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                     <label className="text-xs font-bold text-slate-500 uppercase flex items-center"><BookOpen size={12} className="mr-1"/> Course Details</label>
                     
                     {activeTab === 'preset' ? (
-                        <select className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-slate-400 focus:outline-none focus:border-emerald-500" onChange={handlePresetChange} defaultValue="">
-                            <option value="" disabled>Or select preset...</option>
-                            <option value="olton_white">Olton GC - White (Men)</option>
-                            <option value="olton_yellow">Olton GC - Yellow (Men)</option>
-                            <option value="olton_red">Olton GC - Red (Ladies)</option>
-                            <option value="fairhaven_white">Fairhaven GC - White</option>
-                            <option value="fairhaven_yellow">Fairhaven GC - Yellow</option>
-                            <option value="moorpark_high_white">Moor Park - High (White)</option>
-                            <option value="moorpark_high_yellow">Moor Park - High (Yellow)</option>
-                            <option value="moorpark_high_red">Moor Park - High (Red)</option>
-                            <option value="moorpark_west_white">Moor Park - West (White)</option>
-                            <option value="moorpark_west_yellow">Moor Park - West (Yellow)</option>
-                        </select>
+                        <div className="flex gap-2">
+                            <select className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-slate-400 focus:outline-none focus:border-emerald-500" onChange={handlePresetChange} defaultValue="">
+                                <option value="" disabled>Select a course...</option>
+                                <option value="olton_white">Olton GC - White (Men)</option>
+                                <option value="olton_yellow">Olton GC - Yellow (Men)</option>
+                                <option value="olton_red">Olton GC - Red (Ladies)</option>
+                                <option value="fairhaven_white">Fairhaven GC - White</option>
+                                <option value="fairhaven_yellow">Fairhaven GC - Yellow</option>
+                                <option value="fairhaven_red">Fairhaven GC - Red</option>
+                                <option value="moorpark_high_white">Moor Park - High (White)</option>
+                                <option value="moorpark_high_yellow">Moor Park - High (Yellow)</option>
+                                <option value="moorpark_high_red">Moor Park - High (Red)</option>
+                                <option value="moorpark_west_white">Moor Park - West (White)</option>
+                                <option value="moorpark_west_yellow">Moor Park - West (Yellow)</option>
+                                <option value="moorpark_west_red">Moor Park - West (Red)</option>
+                            </select>
+                            <button type="button" onClick={() => setShowBrowser(true)} className="px-3 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors flex-shrink-0"><Globe size={18} /></button>
+                        </div>
                     ) : (
                         <div className="space-y-2">
-                            <input className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" value={courseName} onChange={(e) => setCourseName(e.target.value)} placeholder="Enter Course Name" />
+                            <div className="flex gap-2">
+                                <input className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" value={courseName} onChange={(e) => setCourseName(e.target.value)} placeholder="Enter Course Name" />
+                                <button type="button" onClick={() => setShowBrowser(true)} className="px-3 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors flex-shrink-0"><Globe size={18} /></button>
+                            </div>
                             <div className="text-[10px] text-slate-500 italic">Enter Slope/Rating below, then edit hole details</div>
                         </div>
                     )}
@@ -663,20 +827,287 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
   );
 };
 
-// ... existing code for ScoreView, LeaderboardView, ScorecardView, TeeSheetModal ...
+const ScoreView = ({
+  currentHole, setCurrentHole, currentHoleScore, updateScore,
+  activePars, myData, activeGameMode, activeSi, players, user,
+  syncStatus, leaveGame, teamMode, gameSettings
+}: any) => {
+  const holePar = activePars[currentHole - 1];
+  const holeSi = activeSi ? activeSi[currentHole - 1] : (currentHole);
+  const [showAllPlayers, setShowAllPlayers] = useState(false);
+  const myGroup = myData.teeGroup;
+  const relevantPlayers = useMemo(() => {
+      if (showAllPlayers) return players;
+      if (myGroup) { const groupMembers = players.filter((p: any) => p.teeGroup === myGroup); if (!groupMembers.find((p: any) => p.userId === user.uid)) return [myData, ...groupMembers]; return groupMembers; }
+      return players;
+  }, [players, myGroup, showAllPlayers, user, myData]);
+
+  // Calculate Baseline (Lowest HCP) if Diff Mode is ON
+  const useDiff = gameSettings?.useHandicapDiff;
+  let baselineHcp = 0;
+  if (useDiff) {
+      let min = 999;
+      players.forEach((p: any) => { if(p.courseHandicap < min) min = p.courseHandicap; });
+      if(min !== 999) baselineHcp = min;
+  }
+
+  // Determine start/end holes based on mode
+  const holesMode = gameSettings?.holesMode || '18';
+  const startHole = holesMode === 'back9' ? 10 : 1;
+  const endHole = holesMode === 'front9' ? 9 : 18;
+
+  // Ensure currentHole respects bounds on load
+  useEffect(() => {
+     if (currentHole < startHole) setCurrentHole(startHole);
+     if (currentHole > endHole) setCurrentHole(endHole);
+  }, [holesMode]);
+
+  const isLastHole = currentHole === endHole;
+
+  return (
+      <div className="flex flex-col h-full animate-in fade-in duration-300">
+          <div className="flex items-center justify-between bg-slate-900 p-4 rounded-2xl shadow-lg border border-slate-800 mb-4">
+              <button 
+                onClick={() => setCurrentHole((h: number) => Math.max(startHole, h - 1))} 
+                disabled={currentHole === startHole}
+                className="p-3 bg-slate-800 rounded-xl text-slate-400 hover:text-white hover:bg-slate-700 active:scale-95 transition-all disabled:opacity-30"
+              >
+                  <ChevronLeft />
+              </button>
+              <div className="text-center"><h2 className="text-xs text-slate-500 font-bold uppercase tracking-widest">Hole {currentHole}</h2><div className="flex items-center justify-center space-x-2 text-sm text-slate-400"><span>Par {holePar}</span><span className="text-slate-600">•</span><span>SI {holeSi}</span></div></div>
+              <button 
+                onClick={() => setCurrentHole((h: number) => Math.min(endHole, h + 1))} 
+                disabled={currentHole === endHole}
+                className="p-3 bg-slate-800 rounded-xl text-slate-400 hover:text-white hover:bg-slate-700 active:scale-95 transition-all disabled:opacity-30"
+              >
+                  <ChevronRight />
+              </button>
+          </div>
+          <div className="flex justify-between items-center mb-4 px-2"><div className="text-xs font-bold text-slate-500 uppercase">{myGroup && !showAllPlayers ? `Group ${myGroup}` : 'All Players'}</div>{players.length > relevantPlayers.length || showAllPlayers ? (<button onClick={() => setShowAllPlayers(!showAllPlayers)} className="flex items-center text-xs text-blue-400 hover:text-white transition">{showAllPlayers ? <EyeOff size={14} className="mr-1"/> : <Eye size={14} className="mr-1"/>}{showAllPlayers ? 'Show Group' : 'Show All'}</button>) : null}</div>
+          <div className="flex-1 overflow-y-auto space-y-3 pb-20">
+              {relevantPlayers.map((p: any) => {
+                  const score = p.scores?.[currentHole];
+                  const isNR = score === 'NR';
+                  const displayVal = isNR ? 'NR' : (score || holePar);
+                  const isEntered = score !== undefined && score !== 0;
+
+                  // Apply Diff Logic Here for Display
+                  const playingHcp = p.courseHandicap - baselineHcp;
+                  const net = calculateNetScore(score || holePar, currentHole - 1, playingHcp, activeSi || DEFAULT_SI);
+                  
+                  let statPreview = "";
+                  if (activeGameMode === 'stableford') {
+                      const pts = (isNR || net === 'NR') ? 0 : Math.max(0, holePar - net + 2);
+                      statPreview = `${pts} pts`;
+                  } else { 
+                      statPreview = `Net ${net}`; 
+                  }
+                  
+                  const diff = displayVal - holePar;
+                  let colorClass = "text-slate-400";
+                  if (isEntered && !isNR) {
+                      if (diff < 0) colorClass = "text-red-400 font-bold";
+                      else if (diff > 0) colorClass = "text-blue-400 font-bold";
+                      else colorClass = "text-white font-bold";
+                  } else if (isNR) colorClass = "text-orange-500 font-bold";
+
+                  return (
+                      <div key={p.id} className="bg-slate-800 p-2 rounded-xl flex items-center justify-between border border-slate-700 w-full max-w-full">
+                          <div className="flex-1 min-w-0 pr-2 flex items-center">
+                              {p.avatarUrl && <img src={p.avatarUrl} className="w-10 h-10 rounded-full object-cover border border-slate-600 mr-3" alt={p.playerName}/>}
+                              <div>
+                                  <div className="font-bold text-sm text-slate-200 truncate flex items-center">
+                                     {p.playerName}
+                                     {teamMode === 'pairs' && p.teeGroup && <span className="ml-2 text-[8px] bg-slate-700 px-1 rounded text-slate-400">Pair {p.teeGroup}</span>}
+                                  </div>
+                                  <div className="text-[10px] text-slate-500 truncate">
+                                      {useDiff ? `Diff CH: ${playingHcp}` : `CH: ${p.courseHandicap}`} • {statPreview}
+                                  </div>
+                              </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                             <button onClick={() => {
+                                 if (isNR) updateScore(p.userId, currentHole, holePar); 
+                                 else updateScore(p.userId, currentHole, 'NR');
+                             }} className={`w-8 h-10 rounded-lg border flex items-center justify-center font-bold text-[10px] ${isNR ? 'bg-orange-500/20 border-orange-500 text-orange-500' : 'bg-slate-900 border-slate-600 text-slate-500 hover:text-slate-300'}`}>{isNR ? <Ban size={14}/> : 'NR'}</button>
+                              <button onClick={() => !isNR && updateScore(p.userId, currentHole, Math.max(1, displayVal - 1))} className="w-10 h-10 rounded-full bg-slate-900 border border-slate-600 flex items-center justify-center text-red-400 hover:bg-slate-700 active:scale-95 flex-shrink-0"><Minus size={18} /></button>
+                              <div className={`w-8 text-center text-xl font-mono ${colorClass}`}>{displayVal}</div>
+                              <button onClick={() => !isNR && updateScore(p.userId, currentHole, displayVal + 1)} className="w-10 h-10 rounded-full bg-slate-900 border border-slate-600 flex items-center justify-center text-green-400 hover:bg-slate-700 active:scale-95 flex-shrink-0"><Plus size={18} /></button>
+                          </div>
+                      </div>
+                  );
+              })}
+              
+              {/* Finish Round Button - Shows on Last Hole or Manual Trigger */}
+              {(isLastHole || true) && (
+                  <div className="pt-6 pb-2">
+                      <button 
+                        onClick={leaveGame}
+                        className="w-full py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-emerald-500 font-bold flex items-center justify-center"
+                      >
+                          <FlagTriangleRight size={18} className="mr-2" /> Finish Round
+                      </button>
+                  </div>
+              )}
+          </div>
+      </div>
+  );
+};
+
+const LeaderboardView = ({ leaderboardData, user, activeGameMode, teamMode, gameSettings }: any) => (
+  <div className="flex flex-col h-full animate-in slide-in-from-right duration-300">
+      <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-xl flex-1 flex flex-col">
+          <div className="bg-slate-950 p-3 border-b border-slate-800 flex text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              <div className="w-8 text-center">Pos</div><div className="flex-1 pl-2">{teamMode === 'pairs' ? 'Team' : 'Player'}</div><div className="w-8 text-center">Hls</div>
+              {activeGameMode === 'stableford' && <div className="w-16 text-center">Pts</div>}
+              {activeGameMode === 'match' && <div className="w-16 text-center">Status</div>}
+              {activeGameMode === 'skins' && <div className="w-16 text-center">Skins</div>}
+              {activeGameMode === 'stroke' && <><div className="w-12 text-center">Gross</div><div className="w-12 text-center">Net</div></>}
+          </div>
+          <div className="overflow-y-auto flex-1">
+              {leaderboardData.map((entry: any, index: number) => (
+                  <div key={entry.id} className={`flex items-center p-3 border-b border-slate-800/50 ${entry.isUser ? 'bg-emerald-900/10' : ''}`}>
+                      <div className="w-8 text-center font-mono text-slate-600 text-sm">{index + 1}</div>
+                      <div className="flex-1 pl-2 truncate relative flex items-center">
+                          {teamMode === 'singles' && entry.avatarUrl && <img src={entry.avatarUrl} className="w-6 h-6 rounded-full mr-2 object-cover border border-slate-600" alt="avatar"/>}
+                          {teamMode === 'pairs' && <Users2 size={16} className="mr-2 text-slate-500"/>}
+                          <div className="truncate">
+                              <div className="text-white font-medium text-sm flex items-center">{entry.name}</div>
+                              <div className="text-[10px] text-slate-500">{teamMode === 'pairs' ? '' : `CH: ${entry.ch}`}</div>
+                          </div>
+                      </div>
+                      <div className="w-8 text-center text-slate-400 text-sm">{entry.holesPlayed}</div>
+                      {activeGameMode === 'stableford' && <div className="w-16 text-center font-bold font-mono text-lg text-emerald-400">{entry.totalPoints}</div>}
+                      {activeGameMode === 'match' && <div className={`w-16 text-center font-bold font-mono text-sm ${entry.matchStatus === 'AS' ? 'text-slate-400' : (entry.matchStatus.includes('UP') ? 'text-emerald-400' : 'text-red-400')}`}>{entry.matchStatus}</div>}
+                      {activeGameMode === 'skins' && <div className="w-16 text-center font-bold font-mono text-lg text-yellow-400 flex items-center justify-center gap-1"><Gem size={12} className="text-yellow-500" />{entry.skinsWon}</div>}
+                      {activeGameMode === 'stroke' && <><div className={`w-12 text-center font-bold font-mono text-base ${entry.grossToPar === 999 ? 'text-orange-500' : (entry.grossToPar < 0 ? 'text-red-400' : (entry.grossToPar > 0 ? 'text-blue-400' : 'text-slate-200'))}`}>{entry.displayScore}</div><div className="w-12 text-center font-mono text-sm text-emerald-400">{entry.netTotal === 999 ? 'NR' : entry.netTotal}</div></>}
+                  </div>
+              ))}
+          </div>
+          {teamMode === 'pairs' && <div className="p-2 text-[10px] text-center text-emerald-500 bg-slate-950 font-bold">Better Ball Format Active</div>}
+          {activeGameMode === 'match' && <div className="p-2 text-[10px] text-center text-slate-500 bg-slate-950">Match status vs {teamMode === 'pairs' ? 'Host Team' : 'YOU'} {gameSettings?.useHandicapDiff ? '(Diff)' : '(Full)'}</div>}
+          {activeGameMode === 'skins' && <div className="p-2 text-[10px] text-center text-slate-500 bg-slate-950">Skins {gameSettings?.useHandicapDiff ? 'off Lowest' : 'Full Hcp'} (Carry Overs Active)</div>}
+      </div>
+  </div>
+);
+
+const ScorecardView = ({ players, activePars, holesMode, activeGameMode, activeSi }: any) => {
+    // Determine hole range
+    const startHole = holesMode === 'back9' ? 10 : 1;
+    const endHole = holesMode === 'front9' ? 9 : 18;
+    const holes = [];
+    for (let i = startHole; i <= endHole; i++) holes.push(i);
+
+    return (
+        <div className="flex flex-col h-full animate-in slide-in-from-bottom duration-300 bg-slate-950">
+            <div className="overflow-x-auto flex-1 pb-4">
+                <table className="w-full text-xs text-left text-slate-400 border-collapse">
+                    <thead className="text-[10px] uppercase bg-slate-900 sticky top-0 z-10">
+                        <tr>
+                            <th className="px-2 py-3 font-bold text-white border-b border-slate-700 sticky left-0 bg-slate-900 z-20 min-w-[80px]">Player</th>
+                            {holes.map(h => (
+                                <th key={h} className="px-1 py-3 text-center border-b border-slate-700 min-w-[30px] border-l border-slate-800">
+                                    <div>{h}</div>
+                                    <div className="text-[8px] text-slate-500">{activePars[h-1]}</div>
+                                </th>
+                            ))}
+                            <th className="px-2 py-3 text-center border-b border-slate-700 font-bold text-white border-l border-slate-800">Tot</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {players.map((p: any, idx: number) => {
+                            let totalGross = 0;
+                            // let totalPoints = 0; // Removed points variable
+                            
+                            return (
+                                <tr key={p.id} className={idx % 2 === 0 ? 'bg-slate-900/30' : 'bg-transparent'}>
+                                    <td className="px-2 py-3 font-medium text-white border-b border-slate-800 sticky left-0 bg-slate-950 z-10 truncate max-w-[80px]">
+                                        {p.playerName.split(' ')[0]}
+                                        <div className="text-[8px] text-slate-500 font-mono">CH: {p.courseHandicap}</div>
+                                    </td>
+                                    {holes.map(h => {
+                                        const score = p.scores?.[h];
+                                        const par = activePars[h-1];
+                                        // Use passed activeSi or default if missing
+                                        const si = activeSi ? activeSi[h-1] : h; 
+                                        
+                                        let cellClass = "";
+                                        let textClass = "text-slate-300";
+                                        let displayValue: any = "-";
+                                        // let points = 0; // Removed per user request
+
+                                        if (score && score !== 'NR') {
+                                            totalGross += score;
+                                            const diff = score - par;
+
+                                            // REMOVED STABLEFORD CALCULATION FOR CARD
+                                            /*
+                                            const netScore = calculateNetScore(score, h-1, p.courseHandicap, activeSi || DEFAULT_SI);
+                                            if (netScore !== 'NR') {
+                                                points = Math.max(0, par - netScore + 2);
+                                                totalPoints += points;
+                                            }
+                                            */
+
+                                            if (diff < 0) { // Birdie or better
+                                                cellClass = "bg-blue-500/20";
+                                                textClass = "text-blue-400 font-bold";
+                                            } else if (diff === 0) { // Par
+                                                textClass = "text-white font-bold";
+                                            } else if (diff === 1) { // Bogey
+                                                 cellClass = "bg-red-500/10";
+                                                 textClass = "text-red-400";
+                                            } else { // Double or worse
+                                                 cellClass = "bg-orange-500/10";
+                                                 textClass = "text-orange-500";
+                                            }
+                                            
+                                            displayValue = score;
+                                        } else if (score === 'NR') {
+                                            displayValue = 'NR';
+                                            textClass = "text-orange-500";
+                                        }
+
+                                        return (
+                                            <td key={h} className={`px-1 py-3 text-center border-b border-slate-800 border-l border-slate-800 ${cellClass}`}>
+                                                <span className={textClass}>{displayValue}</span>
+                                            </td>
+                                        );
+                                    })}
+                                    <td className="px-2 py-3 text-center font-bold text-emerald-400 border-b border-slate-800 border-l border-slate-800">
+                                        <div className="font-bold text-white">
+                                            {totalGross > 0 ? (totalGross - (activePars.slice(startHole-1, endHole).reduce((a: any,b: any)=>a+b,0) || 0) > 0 ? `+${totalGross - activePars.slice(startHole-1, endHole).reduce((a: any,b: any)=>a+b,0)}` : totalGross - activePars.slice(startHole-1, endHole).reduce((a: any,b: any)=>a+b,0)) : '-'}
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+             <div className="p-2 text-[10px] text-center text-slate-500 bg-slate-950 border-t border-slate-800">
+                <span className="mr-3"><span className="text-blue-400">●</span> Birdie</span>
+                <span className="mr-3"><span className="text-white">●</span> Par</span>
+                <span className="mr-3"><span className="text-red-400">●</span> Bogey</span>
+                <span className="mr-3"><span className="text-orange-500">●</span> Double+</span>
+                <span className="text-emerald-500 font-mono">Pts</span>
+            </div>
+        </div>
+    );
+};
 
 // --- Main App Component ---
 
 export default function App() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<any>(null);
   const [gameId, setGameId] = useState('');
   const [playerName, setPlayerName] = useState('');
   const [handicapIndex, setHandicapIndex] = useState('');
-  const [savedPlayers, setSavedPlayers] = useState([]);
-  const [syncStatus, setSyncStatus] = useState('saved'); // saved, saving, error
+  const [savedPlayers, setSavedPlayers] = useState<any[]>([]);
+  const [syncStatus, setSyncStatus] = useState('saved'); 
   
-  const [players, setPlayers] = useState([]);
-  const [gameSettings, setGameSettings] = useState(null);
+  const [players, setPlayers] = useState<any[]>([]);
+  const [gameSettings, setGameSettings] = useState<any>(null);
   
   const [view, setView] = useState('lobby'); 
   const [currentHole, setCurrentHole] = useState(1);
@@ -687,7 +1118,7 @@ export default function App() {
   const [showTeeSheet, setShowTeeSheet] = useState(false);
   const [showPortal, setShowPortal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [showInfo, setShowInfo] = useState(false); // Added Info state
+  const [showInfo, setShowInfo] = useState(false); 
   
   const [newGuestName, setNewGuestName] = useState('');
   const [newGuestHcp, setNewGuestHcp] = useState('');
@@ -698,9 +1129,9 @@ export default function App() {
   const [pars, setPars] = useState(DEFAULT_PARS);
   const [si, setSi] = useState(DEFAULT_SI);
   const [gameMode, setGameMode] = useState('stroke'); 
-  const [teamMode, setTeamMode] = useState('singles'); // 'singles' or 'pairs' 
+  const [teamMode, setTeamMode] = useState('singles'); 
   const [useHandicapDiff, setUseHandicapDiff] = useState(false);
-  const [holesMode, setHolesMode] = useState('18'); // '18', 'front9', 'back9'
+  const [holesMode, setHolesMode] = useState('18');
 
   // ... existing useEffects and handlers ...
   // Re-adding the missing handlers referenced in SetupView: setSi is passed as prop
@@ -708,20 +1139,45 @@ export default function App() {
   useEffect(() => {
     const initAuth = async () => {
       try { 
-        await setPersistence(auth, browserLocalPersistence); 
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } 
-      } catch (err) { console.error("Auth error", err); setError("Failed to authenticate"); }
+        // Removed explicit browserLocalPersistence to use default behavior (fixes production build issues)
+        // Only try custom token if the variable actually exists and is not empty
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { 
+            await signInWithCustomToken(auth, __initial_auth_token); 
+        } else {
+            // If no custom token, we wait for onAuthStateChanged or trigger anon sign-in
+        }
+      } catch (err) { 
+          console.error("Auth init error", err); 
+          // Fallback to anonymous if custom token fails
+          try { await signInAnonymously(auth); } catch(e) { console.error("Anon fallback failed", e); }
+      }
     };
     initAuth();
+
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
         setUser(u);
         const savedGame = localStorage.getItem('golf_game_id');
         const savedName = localStorage.getItem('golf_player_name');
         const savedHcp = localStorage.getItem('golf_player_hcp');
-        if (savedGame && savedName) { setGameId(savedGame); setPlayerName(savedName); if (savedHcp) setHandicapIndex(savedHcp); setJoinCodeInput(savedGame); } else { setLoading(false); }
+        if (savedGame && savedName) { 
+            setGameId(savedGame); 
+            setPlayerName(savedName); 
+            if (savedHcp) setHandicapIndex(savedHcp); 
+            setJoinCodeInput(savedGame); 
+        } else { 
+            // If authenticated but no saved game, stop loading so we see the Lobby
+            setLoading(false); 
+        }
       } else {
-        if (!user) { try { await signInAnonymously(auth); } catch (e) { console.error("Anon sign in failed", e); } }
+        // If not authenticated, sign in anonymously
+        try { 
+            await signInAnonymously(auth); 
+        } catch (e) { 
+            console.error("Anon sign in failed", e); 
+            // Crucial fix: Ensure loading stops even if auth fails so the user sees something (e.g. Lobby)
+            setLoading(false); 
+        }
       }
     });
     return () => unsubscribe();
@@ -731,9 +1187,9 @@ export default function App() {
       if (!user) return;
       const q = query(collection(db, 'artifacts', appId, 'users', user.uid, 'saved_players'));
       const unsubscribe = onSnapshot(q, (snapshot) => { 
-          const sp = []; 
+          const sp: any[] = []; 
           snapshot.forEach(doc => sp.push({id: doc.id, ...doc.data()})); 
-          sp.sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically
+          sp.sort((a, b) => a.name.localeCompare(b.name)); 
           setSavedPlayers(sp); 
       }, (err) => { console.error("Error fetching players:", err); });
       return () => unsubscribe();
@@ -750,15 +1206,24 @@ export default function App() {
             if (view === 'lobby' || view === 'setup') setView('score'); 
         } 
         setLoading(false);
-    }, (err) => console.error(err));
+    }, (err) => {
+        console.error("Settings snapshot error:", err);
+        setLoading(false); // Ensure we don't hang on error
+    });
+    
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME), where('gameId', '==', gameId.toUpperCase()), where('type', '==', 'player'));
-    const unsubPlayers = onSnapshot(q, (snapshot) => { const playerData = []; snapshot.forEach((doc) => { playerData.push({ id: doc.id, ...doc.data() }); }); setPlayers(playerData); }, (err) => console.error(err));
+    const unsubPlayers = onSnapshot(q, (snapshot) => { 
+        const playerData: any[] = []; 
+        snapshot.forEach((doc) => { playerData.push({ id: doc.id, ...doc.data() }); }); 
+        setPlayers(playerData); 
+    }, (err) => console.error("Players snapshot error:", err));
+    
     return () => { unsubSettings(); unsubPlayers(); };
   }, [user, gameId]);
 
   const startSetup = () => { if (!courseName.trim()) { setError("Name the game first"); return; } setView('setup'); };
 
-  const createGame = async (friendsToAdd = [], hostAvatarUrl = '') => {
+  const createGame = async (friendsToAdd: any[] = [], hostAvatarUrl = '') => {
       if (!playerName) { throw new Error("Host name required"); }
       const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
       const settingsId = `SETTINGS_${newCode}`;
@@ -802,7 +1267,7 @@ export default function App() {
     await joinGameLogic(code, settings.courseName, settings.slope, settings.rating, settings.totalPar, '', settings.holesMode);
   };
 
-  const joinGameLogic = async (code, cName, cSlope, cRating, cTotalPar, avatarUrl = '', hMode = '18') => {
+  const joinGameLogic = async (code: string, cName: string, cSlope: any, cRating: any, cTotalPar: any, avatarUrl = '', hMode = '18') => {
     setLoading(true);
     setGameId(code);
     localStorage.setItem('golf_game_id', code);
@@ -824,17 +1289,17 @@ export default function App() {
     setLoading(false);
   };
 
-  const updateScore = async (targetUserId, hole, strokes) => {
+  const updateScore = async (targetUserId: string, hole: number, strokes: any) => {
     if (!user || !gameId) return;
     setSyncStatus('saving');
     const playerDocId = `${gameId}_${targetUserId}`;
-    const targetPlayer = players.find(p => p.userId === targetUserId) || {};
+    const targetPlayer = players.find((p: any) => p.userId === targetUserId) || {};
     const currentScores = targetPlayer.scores || {};
     const newScores = { ...currentScores, [hole]: strokes };
     try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, playerDocId), { scores: newScores }, { merge: true }); setSyncStatus('saved'); } catch (e) { console.error("Sync error:", e); setSyncStatus('error'); }
   };
 
-  const updatePlayerGroup = async (playerId, groupNum) => {
+  const updatePlayerGroup = async (playerId: string, groupNum: number | null) => {
       if (!playerId) return;
       const playerDoc = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, playerId);
       try {
@@ -844,7 +1309,18 @@ export default function App() {
   
   const leaveGame = () => { setShowExitModal(true); };
   const confirmLeave = () => { localStorage.removeItem('golf_game_id'); setGameId(''); setPlayers([]); setGameSettings(null); setView('lobby'); setJoinCodeInput(''); setShowExitModal(false); };
-  const loadHistoricalGame = (oldGameId) => { if(!oldGameId) return; setGameId(oldGameId); setShowHistory(false); setView('leaderboard'); };
+  
+  const loadHistoricalGame = (oldGameId: string) => { 
+      if(!oldGameId) return; 
+      // Reset critical state to prevent UI glitches during transition
+      setLoading(true);
+      setGameId(oldGameId); 
+      setPlayers([]); // Clear players to avoid stale data
+      setGameSettings(null); // Clear settings to avoid stale data
+      setShowHistory(false); 
+      setView('leaderboard'); 
+      // Loading will be cleared by the main useEffect when data fetches
+  };
 
   const addGuestPlayer = async (avatarUrl = '') => {
       if (!newGuestName.trim()) return;
@@ -868,7 +1344,7 @@ export default function App() {
       setNewGuestName(''); setNewGuestHcp('');
   };
 
-  const randomizeGroups = async (groupSize) => {
+  const randomizeGroups = async (groupSize: number) => {
       if (players.length === 0) return;
       const shuffled = [...players];
       for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
@@ -877,10 +1353,15 @@ export default function App() {
       await batch.commit();
   };
   
-  const handleLogin = async () => { const provider = new GoogleAuthProvider(); try { if (user && user.isAnonymous) { await linkWithPopup(user, provider); } else { await signInWithPopup(auth, provider); } } catch (error) { if (error.code === 'auth/credential-already-in-use') { await signInWithPopup(auth, provider); } else if (error.code === 'auth/popup-closed-by-user') { /* Ignore */ } else { alert("Login failed: " + error.message + "\nCheck domain whitelist in Firebase."); } } };
+  const handleLogin = async () => { const provider = new GoogleAuthProvider(); try { if (user && user.isAnonymous) { await linkWithPopup(user, provider); } else { await signInWithPopup(auth, provider); } } catch (error: any) { if (error.code === 'auth/credential-already-in-use') { await signInWithPopup(auth, provider); } else if (error.code === 'auth/popup-closed-by-user') { /* Ignore */ } else { alert("Login failed: " + error.message + "\nCheck domain whitelist in Firebase."); } } };
   const handleLogout = async () => { await signOut(auth); await signInAnonymously(auth); };
 
-  // ... rest of rendering logic ...
+  if (loading) return (
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-500 space-y-4">
+        <Loader2 className="animate-spin text-emerald-600" size={32} />
+        <p className="text-xs uppercase tracking-widest">Loading Application...</p>
+    </div>
+  );
 
   return (
     <div 
@@ -915,8 +1396,8 @@ export default function App() {
                 rating={rating} setRating={setRating}
                 pars={pars} setPars={setPars}
                 gameMode={gameMode} setGameMode={setGameMode}
-                setSi={setSi} // Pass setSi to SetupView
-                si={si}       // Pass si to SetupView
+                setSi={setSi} 
+                si={si}       
                 playerName={playerName} setPlayerName={setPlayerName}
                 handicapIndex={handicapIndex} setHandicapIndex={setHandicapIndex}
                 createGame={createGame}
@@ -953,31 +1434,52 @@ export default function App() {
                 </header>
 
                 <main className="flex-1 p-4 max-w-lg mx-auto w-full overflow-hidden flex flex-col">
+                    {/* Guard against rendering views before data is ready */}
                     {view === 'score' && (
-                        <ScoreView 
-                            currentHole={currentHole} setCurrentHole={setCurrentHole}
-                            currentHoleScore={currentHoleScore} updateScore={updateScore}
-                            activePars={activePars} myData={myData}
-                            activeGameMode={activeGameMode} activeSi={activeSi}
-                            players={players}
-                            user={user}
-                            syncStatus={syncStatus}
-                            leaveGame={leaveGame}
-                            teamMode={gameSettings?.teamMode || 'singles'}
-                            gameSettings={gameSettings}
-                        />
+                        (gameSettings && players.length > 0) ? (
+                            <ScoreView 
+                                currentHole={currentHole} setCurrentHole={setCurrentHole}
+                                currentHoleScore={currentHoleScore} updateScore={updateScore}
+                                activePars={activePars} myData={myData}
+                                activeGameMode={activeGameMode} activeSi={activeSi}
+                                players={players}
+                                user={user}
+                                syncStatus={syncStatus}
+                                leaveGame={leaveGame}
+                                teamMode={gameSettings?.teamMode || 'singles'}
+                                gameSettings={gameSettings}
+                            />
+                        ) : (
+                            <div className="flex-1 flex items-center justify-center text-slate-500">
+                                <Loader2 className="animate-spin mr-2" /> Loading Scorecard...
+                            </div>
+                        )
                     )}
                     
                     {view === 'leaderboard' && (
-                        <LeaderboardView leaderboardData={leaderboardData} user={user} activeGameMode={activeGameMode} teamMode={gameSettings?.teamMode || 'singles'} gameSettings={gameSettings} />
+                        (gameSettings && players.length > 0) ? (
+                            <LeaderboardView leaderboardData={leaderboardData} user={user} activeGameMode={activeGameMode} teamMode={gameSettings?.teamMode || 'singles'} gameSettings={gameSettings} />
+                        ) : (
+                            <div className="flex-1 flex items-center justify-center text-slate-500">
+                                <Loader2 className="animate-spin mr-2" /> Loading Leaderboard...
+                            </div>
+                        )
                     )}
 
                     {view === 'card' && (
-                        <ScorecardView 
-                            players={players} 
-                            activePars={activePars} 
-                            holesMode={gameSettings?.holesMode || '18'} 
-                        />
+                        (gameSettings && players.length > 0) ? (
+                            <ScorecardView 
+                                players={players} 
+                                activePars={activePars} 
+                                activeSi={activeSi} 
+                                holesMode={gameSettings?.holesMode || '18'} 
+                                activeGameMode={activeGameMode}
+                            />
+                        ) : (
+                            <div className="flex-1 flex items-center justify-center text-slate-500">
+                                <Loader2 className="animate-spin mr-2" /> Loading Card...
+                            </div>
+                        )
                     )}
                     
                     <div className="mt-2 flex justify-between items-center px-1">
