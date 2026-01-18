@@ -82,11 +82,14 @@ import {
 
 // --- CONFIGURATION & CONSTANTS ---
 const APP_VERSION = "v3.7.5 (Jan 13th 2026, 14:01AM)";
-// Using a placeholder URL that works in this environment since local assets won't load
-const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png";  
-const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
+// Note: Local images like "/NilsPoisGolfInAppLogo.png" won't load in this preview. 
+// I've kept the remote URL as a fallback so you can see the UI.
+//const CUSTOM_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/1165/1165187.png"; 
+const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
 
 const APP_ID = "nils-pois-golf-v5"; 
+const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
+
 const COLLECTION_NAME = 'golf_scores';
 
 const DEFAULT_PARS = [4, 4, 4, 4, 3, 4, 4, 3, 4, 4, 5, 4, 3, 4, 3, 4, 4, 5];
@@ -127,6 +130,13 @@ const PRESET_COURSES = {
     rating: 71.6,
     pars: [5, 3, 5, 4, 3, 4, 4, 4, 4, 3, 5, 4, 4, 4, 5, 4, 3, 5],
     si:   [10, 8, 14, 2, 6, 16, 18, 4, 12, 9, 15, 7, 5, 13, 1, 3, 17, 11]
+  },
+  'fairhaven_red': {
+    name: "Fairhaven GC (Red)",
+    slope: 136,
+    rating: 75.8,
+    pars: [5, 3, 5, 5, 3, 4, 4, 4, 4, 3, 5, 4, 4, 4, 5, 5, 3, 5],
+    si:   [10, 18, 6, 12, 14, 2, 16, 4, 8, 11, 3, 17, 5, 15, 1, 7, 13, 9]
   },
   'moorpark_high_white': {
     name: "Moor Park - High (White)",
@@ -171,6 +181,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
 
 // --- Helper Functions ---
 const calculateNetScore = (gross, holeIdx, ch, siList) => {
