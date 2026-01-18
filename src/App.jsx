@@ -81,12 +81,9 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-const APP_VERSION = "v3.7.5 (Jan 13th 2026, 14:01AM)";
-// Note: Local images like "/NilsPoisGolfInAppLogo.png" won't load in this preview. 
-// I've kept the remote URL as a fallback so you can see the UI.
+const APP_VERSION = "v3.7.6 (Universal Config)";
 //const CUSTOM_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/1165/1165187.png"; 
 const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
-
 const APP_ID = "nils-pois-golf-v5"; 
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
 
@@ -152,6 +149,13 @@ const PRESET_COURSES = {
     pars: [4, 4, 3, 4, 4, 5, 4, 4, 5, 3, 4, 3, 5, 4, 4, 5, 4, 3],
     si:   [7, 3, 15, 5, 9, 11, 13, 1, 17, 18, 8, 4, 12, 2, 6, 16, 10, 14]
   },
+  'moorpark_high_red': {
+    name: "Moor Park - High (Ladies)",
+    slope: 129,
+    rating: 68.5,
+    pars: [4, 5, 3, 5, 4, 5, 4, 4, 4, 3, 4, 3, 5, 4, 4, 5, 4, 3],
+    si:   [9, 11, 17, 5, 13, 3, 15, 1, 7, 16, 4, 10, 14, 2, 8, 12, 6, 18]
+  },
   'moorpark_west_white': {
     name: "Moor Park - West (White)",
     slope: 121,
@@ -165,28 +169,44 @@ const PRESET_COURSES = {
     rating: 67.7,
     pars: [4, 3, 4, 3, 4, 3, 4, 4, 3, 4, 4, 5, 3, 5, 4, 4, 4, 4],
     si:   [11, 9, 5, 15, 3, 17, 1, 7, 13, 14, 6, 12, 16, 4, 2, 8, 10, 18]
+  },
+  'moorpark_west_red': {
+    name: "Moor Park - West (Ladies)",
+    slope: 120,
+    rating: 70.2,
+    pars: [4, 3, 4, 3, 5, 3, 5, 4, 3, 3, 4, 5, 3, 5, 4, 4, 4, 4],
+    si:   [11, 13, 3, 15, 7, 17, 5, 1, 9, 4, 10, 12, 16, 8, 2, 6, 14, 18]
   }
 };
 
 // --- Firebase Initialization ---
-// IMPORTANT: This uses the environment's configuration to work in this preview.
-// Hardcoded API keys will likely fail due to domain restrictions.
-const firebaseConfig = {
-  apiKey: "AIzaSyCllkJmbTVFmCIzkyIHXIO24FKlJ9i4VQg",
-  authDomain: "nilspoisgolf.firebaseapp.com",
-  projectId: "nilspoisgolf",
-  storageBucket: "nilspoisgolf.firebasestorage.app",
-  messagingSenderId: "606422939116",
-  appId: "1:606422939116:web:d2a51bd4a1d5606c787cc9",
-  measurementId: "G-VZ8X10ZEC4"
+// IMPORTANT: This handles BOTH environments safely.
+const getFirebaseConfig = () => {
+  try {
+    // Check for Canvas environment variable
+    if (typeof __firebase_config !== 'undefined') {
+      return JSON.parse(__firebase_config);
+    }
+  } catch (e) {
+    // Ignore error and fall back
+  }
+  
+  // Fallback for Vercel / Production
+  return {
+    apiKey: "AIzaSyCllkJmbTVFmCIzkyIHXIO24FKlJ9i4VQg",
+    authDomain: "nilspoisgolf.firebaseapp.com",
+    projectId: "nilspoisgolf",
+    storageBucket: "nilspoisgolf.firebasestorage.app",
+    messagingSenderId: "606422939116",
+    appId: "1:606422939116:web:d2a51bd4a1d5606c787cc9",
+    measurementId: "G-VZ8X10ZEC4"
+  };
 };
 
-// Initialize Firebase
-const analytics = getAnalytics(app);
+const firebaseConfig = getFirebaseConfig();
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-// Use the ID from your config as the default fallback
 const appId = typeof __app_id !== 'undefined' ? __app_id : APP_ID;
 
 // --- Helper Functions ---
@@ -487,6 +507,117 @@ const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput,
   </div>
 );
 
+const CourseBrowser = ({ onClose, onSelectCourse }) => {
+    const [step, setStep] = useState('clubs'); 
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [items, setItems] = useState([]);
+    const [selectedClub, setSelectedClub] = useState(null);
+    const [selectedCourse, setSelectedCourse] = useState(null);
+
+    useEffect(() => {
+        const fetchClubs = async () => {
+            try {
+                const res = await fetch('https://api.bthree.uk/golf/v1/clubs');
+                if (!res.ok) throw new Error("API Error");
+                const data = await res.json();
+                setItems(data || []);
+            } catch (e) { console.error(e); setItems([]); } finally { setLoading(false); }
+        };
+        fetchClubs();
+    }, []);
+
+    const handleClubSelect = async (club) => {
+        setLoading(true);
+        setSelectedClub(club);
+        try {
+            const res = await fetch(`https://api.bthree.uk/golf/v1/clubs/${club.id}/courses`);
+            const data = await res.json();
+            setItems(data || []);
+            setStep('courses');
+            setSearchTerm('');
+        } catch (e) { console.error(e); } finally { setLoading(false); }
+    };
+
+    const handleCourseSelect = async (course) => {
+        setLoading(true);
+        setSelectedCourse(course);
+        try {
+            const res = await fetch(`https://api.bthree.uk/golf/v1/courses/${course.id}/markers`);
+            const data = await res.json();
+            setItems(data || []);
+            setStep('tees');
+        } catch (e) { console.error(e); } finally { setLoading(false); }
+    };
+
+    const handleTeeSelect = async (tee) => {
+        setLoading(true);
+        try {
+            const res = await fetch(`https://api.bthree.uk/golf/v1/markers/${tee.id}/holes`);
+            const holes = await res.json();
+            const pars = new Array(18).fill(4);
+            const si = new Array(18).fill(18);
+            if (Array.isArray(holes)) {
+                holes.forEach(h => {
+                    const idx = h.number - 1;
+                    if (idx >= 0 && idx < 18) {
+                        pars[idx] = h.par || 4;
+                        si[idx] = h.stroke_index || (idx + 1);
+                    }
+                });
+            }
+            const slope = tee.slope || 113;
+            const rating = tee.rating || 72;
+            onSelectCourse({ 
+                name: `${selectedClub.name} - ${tee.colour}`, 
+                pars, 
+                si, 
+                slope, 
+                rating 
+            });
+            onClose();
+        } catch (e) { alert("Could not load data."); } finally { setLoading(false); }
+    };
+
+    const filteredItems = items.filter(i => {
+        const name = i.name || i.colour || '';
+        return name.toLowerCase().includes(searchTerm.toLowerCase());
+    });
+
+    return (
+        <div className="fixed inset-0 bg-slate-950 z-[60] flex flex-col animate-in fade-in duration-200">
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900">
+                <h3 className="font-bold text-white flex items-center">
+                    <Globe size={18} className="mr-2 text-blue-400" />
+                    {step === 'clubs' && "Select Club"}
+                    {step === 'courses' && selectedClub?.name}
+                    {step === 'tees' && selectedCourse?.name}
+                </h3>
+                <button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X size={20} /></button>
+            </div>
+            <div className="p-2 bg-slate-900 border-b border-slate-800">
+                <div className="flex bg-slate-800 rounded-lg p-2 items-center">
+                    <Search size={16} className="text-slate-500 mr-2" />
+                    <input className="bg-transparent flex-1 text-sm text-white outline-none placeholder:text-slate-600" placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} autoFocus />
+                </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                {loading ? <div className="flex justify-center pt-10 text-slate-500"><DownloadCloud className="animate-bounce" /></div> : filteredItems.map(item => (
+                        <button key={item.id} onClick={() => {
+                                if (step === 'clubs') handleClubSelect(item);
+                                if (step === 'courses') handleCourseSelect(item);
+                                if (step === 'tees') handleTeeSelect(item);
+                            }} className="w-full text-left p-4 bg-slate-900/50 border border-slate-800 rounded-xl hover:bg-slate-800 hover:border-slate-700 transition flex justify-between items-center group">
+                            <span className="font-medium text-slate-200">{item.name || item.colour}</span>
+                            <ChevronRight size={16} className="text-slate-600 group-hover:text-blue-400" />
+                        </button>
+                    ))
+                }
+            </div>
+        </div>
+    );
+};
+
 const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRating, pars, setPars, gameMode, setGameMode, setSi, si, playerName, setPlayerName, handicapIndex, setHandicapIndex, createGame, onCancel, savedPlayers, error, teamMode, setTeamMode, useHandicapDiff, setUseHandicapDiff, holesMode, setHolesMode }) => {
   const [selectedFriends, setSelectedFriends] = useState(new Set());
   const [adhocName, setAdhocName] = useState('');
@@ -495,6 +626,7 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
   const [isCreating, setIsCreating] = useState(false);
   const [hostAvatar, setHostAvatar] = useState('');
   const [activeTab, setActiveTab] = useState('preset');
+  const [showBrowser, setShowBrowser] = useState(false);
 
   const handlePresetChange = (e) => {
     const key = e.target.value;
@@ -528,6 +660,7 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
 
   return (
     <div className="min-h-screen bg-slate-950 text-white p-4 flex flex-col items-center">
+        {showBrowser && <CourseBrowser onClose={() => setShowBrowser(false)} onSelectCourse={(data) => { setCourseName(data.name); setPars(data.pars); setSi(data.si); setSlope(data.slope); setRating(data.rating); }} />}
         <h2 className="text-xl font-bold mb-4 flex items-center"><Settings size={20} className="mr-2"/> Game Setup</h2>
         {error && <div className="w-full max-w-md p-3 bg-red-500/20 border border-red-500/50 text-red-200 rounded-lg text-sm text-center mb-4 flex items-center justify-center animate-in fade-in"><AlertCircle size={16} className="mr-2"/>{String(error)}</div>}
         <div className="w-full max-w-md bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-6">
@@ -589,22 +722,29 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                     <label className="text-xs font-bold text-slate-500 uppercase flex items-center"><BookOpen size={12} className="mr-1"/> Course Details</label>
                     
                     {activeTab === 'preset' ? (
-                        <select className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-slate-400 focus:outline-none focus:border-emerald-500" onChange={handlePresetChange} defaultValue="">
-                            <option value="" disabled>Or select preset...</option>
-                            <option value="olton_white">Olton GC - White (Men)</option>
-                            <option value="olton_yellow">Olton GC - Yellow (Men)</option>
-                            <option value="olton_red">Olton GC - Red (Ladies)</option>
-                            <option value="fairhaven_white">Fairhaven GC - White</option>
-                            <option value="fairhaven_yellow">Fairhaven GC - Yellow</option>
-                            <option value="moorpark_high_white">Moor Park - High (White)</option>
-                            <option value="moorpark_high_yellow">Moor Park - High (Yellow)</option>
-                            <option value="moorpark_high_red">Moor Park - High (Red)</option>
-                            <option value="moorpark_west_white">Moor Park - West (White)</option>
-                            <option value="moorpark_west_yellow">Moor Park - West (Yellow)</option>
-                        </select>
+                        <div className="flex gap-2">
+                            <select className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-slate-400 focus:outline-none focus:border-emerald-500" onChange={handlePresetChange} defaultValue="">
+                                <option value="" disabled>Select a course...</option>
+                                <option value="olton_white">Olton GC - White (Men)</option>
+                                <option value="olton_yellow">Olton GC - Yellow (Men)</option>
+                                <option value="olton_red">Olton GC - Red (Ladies)</option>
+                                <option value="fairhaven_white">Fairhaven GC - White</option>
+                                <option value="fairhaven_yellow">Fairhaven GC - Yellow</option>
+                                <option value="fairhaven_red">Fairhaven GC - Red</option>
+                                <option value="moorpark_high_white">Moor Park - High (White)</option>
+                                <option value="moorpark_high_yellow">Moor Park - High (Yellow)</option>
+                                <option value="moorpark_high_red">Moor Park - High (Red)</option>
+                                <option value="moorpark_west_white">Moor Park - West (White)</option>
+                                <option value="moorpark_west_yellow">Moor Park - West (Yellow)</option>
+                            </select>
+                            <button type="button" onClick={() => setShowBrowser(true)} className="px-3 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors flex-shrink-0"><Globe size={18} /></button>
+                        </div>
                     ) : (
                         <div className="space-y-2">
-                            <input className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" value={courseName} onChange={(e) => setCourseName(e.target.value)} placeholder="Enter Course Name" />
+                            <div className="flex gap-2">
+                                <input className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" value={courseName} onChange={(e) => setCourseName(e.target.value)} placeholder="Enter Course Name" />
+                                <button type="button" onClick={() => setShowBrowser(true)} className="px-3 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors flex-shrink-0"><Globe size={18} /></button>
+                            </div>
                             <div className="text-[10px] text-slate-500 italic">Enter Slope/Rating below, then edit hole details</div>
                         </div>
                     )}
@@ -716,19 +856,39 @@ export default function App() {
     const initAuth = async () => {
       try { 
         await setPersistence(auth, browserLocalPersistence); 
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } 
-      } catch (err) { console.error("Auth error", err); setError("Failed to authenticate"); }
+        // Only try custom token if the variable actually exists and is not empty
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { 
+            await signInWithCustomToken(auth, __initial_auth_token); 
+        } else {
+            // If no custom token, we wait for onAuthStateChanged or trigger anon sign-in
+            // This prevents a race condition or double-init
+        }
+      } catch (err) { 
+          console.error("Auth init error", err); 
+          // Fallback to anonymous if custom token fails
+          try { await signInAnonymously(auth); } catch(e) { console.error("Anon fallback failed", e); }
+      }
     };
     initAuth();
+
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
         setUser(u);
         const savedGame = localStorage.getItem('golf_game_id');
         const savedName = localStorage.getItem('golf_player_name');
         const savedHcp = localStorage.getItem('golf_player_hcp');
-        if (savedGame && savedName) { setGameId(savedGame); setPlayerName(savedName); if (savedHcp) setHandicapIndex(savedHcp); setJoinCodeInput(savedGame); } else { setLoading(false); }
+        if (savedGame && savedName) { 
+            setGameId(savedGame); 
+            setPlayerName(savedName); 
+            if (savedHcp) setHandicapIndex(savedHcp); 
+            setJoinCodeInput(savedGame); 
+        } else { 
+            // If authenticated but no saved game, stop loading so we see the Lobby
+            setLoading(false); 
+        }
       } else {
-        if (!user) { try { await signInAnonymously(auth); } catch (e) { console.error("Anon sign in failed", e); } }
+        // If not authenticated, sign in anonymously
+        try { await signInAnonymously(auth); } catch (e) { console.error("Anon sign in failed", e); setLoading(false); }
       }
     });
     return () => unsubscribe();
@@ -887,7 +1047,12 @@ export default function App() {
   const handleLogin = async () => { const provider = new GoogleAuthProvider(); try { if (user && user.isAnonymous) { await linkWithPopup(user, provider); } else { await signInWithPopup(auth, provider); } } catch (error) { if (error.code === 'auth/credential-already-in-use') { await signInWithPopup(auth, provider); } else if (error.code === 'auth/popup-closed-by-user') { /* Ignore */ } else { alert("Login failed: " + error.message + "\nCheck domain whitelist in Firebase."); } } };
   const handleLogout = async () => { await signOut(auth); await signInAnonymously(auth); };
 
-  // ... rest of rendering logic ...
+  if (loading) return (
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-500 space-y-4">
+        <Activity className="animate-spin text-emerald-600" size={32} />
+        <p className="text-xs uppercase tracking-widest">Loading Application...</p>
+    </div>
+  );
 
   return (
     <div 
