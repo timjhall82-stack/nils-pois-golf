@@ -81,7 +81,7 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-const APP_VERSION = "v3.7.10 (Fix Persistence)";
+const APP_VERSION = "v3.8.0 (Bug Fix)";
 // Note: Local images like "/NilsPoisGolfInAppLogo.png" won't load in this preview. 
 // I've kept the remote URL as a fallback so you can see the UI.
 const CUSTOM_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/1165/1165187.png"; 
@@ -659,7 +659,14 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
   const removeAdhoc = (id) => { setAdhocGuests(prev => prev.filter(g => g.id !== id)); };
   const handleStartGame = async () => {
       setIsCreating(true);
-      try { const portalFriends = savedPlayers.filter(p => selectedFriends.has(p.id)); const fullRoster = [...portalFriends, ...adhocGuests]; await createGame(fullRoster, hostAvatar); } catch(e) { alert("Error creating game: " + e.message); setIsCreating(false); }
+      try { 
+          const portalFriends = savedPlayers.filter(p => selectedFriends.has(p.id)); 
+          const fullRoster = [...portalFriends, ...adhocGuests]; 
+          await createGame(fullRoster, hostAvatar); 
+      } catch(e) { 
+          alert("Error creating game: " + e.message); 
+          setIsCreating(false); 
+      }
   };
   const ModeButton = ({ mode, icon: Icon, label }) => (<button onClick={() => setGameMode(mode)} className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${gameMode === mode ? 'border-emerald-500 bg-emerald-500/20 text-white' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-500'}`}><Icon size={20} className="mb-1" /><span className="text-[10px] font-bold uppercase">{label}</span></button>);
 
@@ -1126,23 +1133,17 @@ export default function App() {
   const [useHandicapDiff, setUseHandicapDiff] = useState(false);
   const [holesMode, setHolesMode] = useState('18'); // '18', 'front9', 'back9'
 
-  // ... existing useEffects and handlers ...
-  // Re-adding the missing handlers referenced in SetupView: setSi is passed as prop
-  
   useEffect(() => {
     const initAuth = async () => {
       try { 
         await setPersistence(auth, browserLocalPersistence); 
-        // Only try custom token if the variable actually exists and is not empty
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { 
             await signInWithCustomToken(auth, __initial_auth_token); 
         } else {
-            // If no custom token, we wait for onAuthStateChanged or trigger anon sign-in
-            // This prevents a race condition or double-init
+            // Default to anonymouse if no custom token
         }
       } catch (err) { 
           console.error("Auth init error", err); 
-          // Fallback to anonymous if custom token fails
           try { await signInAnonymously(auth); } catch(e) { console.error("Anon fallback failed", e); }
       }
     };
@@ -1160,11 +1161,9 @@ export default function App() {
             if (savedHcp) setHandicapIndex(savedHcp); 
             setJoinCodeInput(savedGame); 
         } else { 
-            // If authenticated but no saved game, stop loading so we see the Lobby
             setLoading(false); 
         }
       } else {
-        // If not authenticated, sign in anonymously
         try { await signInAnonymously(auth); } catch (e) { console.error("Anon sign in failed", e); setLoading(false); }
       }
     });
@@ -1177,7 +1176,7 @@ export default function App() {
       const unsubscribe = onSnapshot(q, (snapshot) => { 
           const sp = []; 
           snapshot.forEach(doc => sp.push({id: doc.id, ...doc.data()})); 
-          sp.sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically
+          sp.sort((a, b) => a.name.localeCompare(b.name));
           setSavedPlayers(sp); 
       }, (err) => { console.error("Error fetching players:", err); });
       return () => unsubscribe();
@@ -1217,7 +1216,6 @@ export default function App() {
           friendsToAdd.forEach(friend => {
               const guestId = `guest_${Math.random().toString(36).substring(2, 9)}`;
               const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, `${newCode}_${guestId}`);
-              // Calculate CH based on 9/18 selection
               const ch = calculateCourseHandicap(friend.handicap, slope, rating, totalPar, holesMode);
               batch.set(docRef, { 
                   gameId: newCode, 
@@ -1291,12 +1289,12 @@ export default function App() {
   
   const loadHistoricalGame = (oldGameId) => { 
       if(!oldGameId) return; 
-      // Reset critical state to prevent UI glitches during transition
       setLoading(true);
       setGameId(oldGameId); 
+      setPlayers([]); 
+      setGameSettings(null); 
       setShowHistory(false); 
       setView('leaderboard'); 
-      // Loading will be cleared by the main useEffect when data fetches
   };
 
   const addGuestPlayer = async (avatarUrl = '') => {
@@ -1411,33 +1409,52 @@ export default function App() {
                 </header>
 
                 <main className="flex-1 p-4 max-w-lg mx-auto w-full overflow-hidden flex flex-col">
+                    {/* Guard against rendering views before data is ready */}
                     {view === 'score' && (
-                        <ScoreView 
-                            currentHole={currentHole} setCurrentHole={setCurrentHole}
-                            currentHoleScore={currentHoleScore} updateScore={updateScore}
-                            activePars={activePars} myData={myData}
-                            activeGameMode={activeGameMode} activeSi={activeSi}
-                            players={players}
-                            user={user}
-                            syncStatus={syncStatus}
-                            leaveGame={leaveGame}
-                            teamMode={gameSettings?.teamMode || 'singles'}
-                            gameSettings={gameSettings}
-                        />
+                        (gameSettings && players.length > 0) ? (
+                            <ScoreView 
+                                currentHole={currentHole} setCurrentHole={setCurrentHole}
+                                currentHoleScore={currentHoleScore} updateScore={updateScore}
+                                activePars={activePars} myData={myData}
+                                activeGameMode={activeGameMode} activeSi={activeSi}
+                                players={players}
+                                user={user}
+                                syncStatus={syncStatus}
+                                leaveGame={leaveGame}
+                                teamMode={gameSettings?.teamMode || 'singles'}
+                                gameSettings={gameSettings}
+                            />
+                        ) : (
+                            <div className="flex-1 flex items-center justify-center text-slate-500">
+                                <Loader2 className="animate-spin mr-2" /> Loading Scorecard...
+                            </div>
+                        )
                     )}
                     
                     {view === 'leaderboard' && (
-                        <LeaderboardView leaderboardData={leaderboardData} user={user} activeGameMode={activeGameMode} teamMode={gameSettings?.teamMode || 'singles'} gameSettings={gameSettings} />
+                        (gameSettings && players.length > 0) ? (
+                            <LeaderboardView leaderboardData={leaderboardData} user={user} activeGameMode={activeGameMode} teamMode={gameSettings?.teamMode || 'singles'} gameSettings={gameSettings} />
+                        ) : (
+                            <div className="flex-1 flex items-center justify-center text-slate-500">
+                                <Loader2 className="animate-spin mr-2" /> Loading Leaderboard...
+                            </div>
+                        )
                     )}
 
                     {view === 'card' && (
-                        <ScorecardView 
-                            players={players} 
-                            activePars={activePars} 
-                            activeSi={activeSi} 
-                            holesMode={gameSettings?.holesMode || '18'} 
-                            activeGameMode={activeGameMode}
-                        />
+                        (gameSettings && players.length > 0) ? (
+                            <ScorecardView 
+                                players={players} 
+                                activePars={activePars} 
+                                activeSi={activeSi} 
+                                holesMode={gameSettings?.holesMode || '18'} 
+                                activeGameMode={activeGameMode}
+                            />
+                        ) : (
+                            <div className="flex-1 flex items-center justify-center text-slate-500">
+                                <Loader2 className="animate-spin mr-2" /> Loading Card...
+                            </div>
+                        )
                     )}
                     
                     <div className="mt-2 flex justify-between items-center px-1">
