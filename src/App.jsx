@@ -81,10 +81,9 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-const APP_VERSION = "v3.7.8 (Stableford Card Update)";
+const APP_VERSION = "v3.8.0 (95% Allowance Added)";
 const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
 
-// Correct Constant Definition
 const APP_ID = "nils-pois-golf-v5"; 
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
 
@@ -191,13 +190,24 @@ const calculateNetScore = (gross, holeIdx, ch, siList) => {
     return gross - strokesReceived;
 };
 
-const calculateCourseHandicap = (index, slopeVal, ratingVal, parVal, holesMode = '18') => {
+// UPDATED: Now supports handicapMode for '95' percent allowance
+const calculateCourseHandicap = (index, slopeVal, ratingVal, parVal, holesMode = '18', handicapMode = 'full') => {
     if (!index || index === '') return 0;
     let idx = parseFloat(index);
     const slp = parseFloat(slopeVal) || 113;
     const rtg = parseFloat(ratingVal) || 72;
     const pr = parseInt(parVal) || 72;
-    let ch = Math.round(idx * (slp / 113) + (rtg - pr));
+    
+    // WHS: Course Handicap = Handicap Index x (Slope/113) + (Course Rating - Par)
+    let rawCh = idx * (slp / 113) + (rtg - pr);
+    
+    // Apply Allowance if needed (Playing Handicap)
+    if (handicapMode === '95') {
+        rawCh = rawCh * 0.95;
+    }
+
+    let ch = Math.round(rawCh);
+
     if (holesMode === 'front9' || holesMode === 'back9') {
         return Math.round(ch / 2);
     }
@@ -454,7 +464,6 @@ const LeaderboardView = ({ leaderboardData, activeGameMode, teamMode, gameSettin
     );
 };
 
-// Updated ScorecardView to show Stableford Points
 const ScorecardView = ({ players, activePars, activeSi, holesMode, gameMode }) => {
     const holes = useMemo(() => {
         if (holesMode === 'front9') return [1,2,3,4,5,6,7,8,9];
@@ -491,13 +500,12 @@ const ScorecardView = ({ players, activePars, activeSi, holesMode, gameMode }) =
                                          if(s && s !== 'NR') total += parseInt(s);
                                          
                                          const par = activePars[h-1];
-                                         const si = activeSi[h-1]; // Get stroke index for this hole
+                                         const si = activeSi[h-1]; 
                                          
                                          let colorClass = "text-slate-400";
                                          if (s) {
                                             const diff = s - par;
                                             
-                                            // Calculate Stableford points for display
                                             if (gameMode === 'stableford') {
                                                 const shots = getShotsOnHole(p.courseHandicap, si);
                                                 points = calculateStableford(s, par, shots);
@@ -514,7 +522,6 @@ const ScorecardView = ({ players, activePars, activeSi, holesMode, gameMode }) =
                                          return (
                                              <td key={h} className={`p-2 text-xs border-r border-slate-800/50 ${colorClass}`}>
                                                  {s || '-'}
-                                                 {/* Render points if mode is stableford and score exists */}
                                                  {gameMode === 'stableford' && s && s !== 'NR' && (
                                                      <sub className="text-[9px] text-yellow-500/80 ml-0.5 align-baseline font-normal">({points})</sub>
                                                  )}
@@ -862,7 +869,7 @@ const LobbyView = ({ playerName, setPlayerName, joinCodeInput, setJoinCodeInput,
   </div>
 );
 
-const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRating, pars, setPars, gameMode, setGameMode, setSi, si, playerName, setPlayerName, handicapIndex, setHandicapIndex, createGame, onCancel, savedPlayers, error, teamMode, setTeamMode, useHandicapDiff, setUseHandicapDiff, holesMode, setHolesMode }) => {
+const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRating, pars, setPars, gameMode, setGameMode, setSi, si, playerName, setPlayerName, handicapIndex, setHandicapIndex, createGame, onCancel, savedPlayers, error, teamMode, setTeamMode, handicapMode, setHandicapMode, holesMode, setHolesMode }) => {
   const [selectedFriends, setSelectedFriends] = useState(new Set());
   const [adhocName, setAdhocName] = useState('');
   const [adhocHcp, setAdhocHcp] = useState('');
@@ -1025,14 +1032,15 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                    </div>
                 </div>
                 
-                {/* Handicap Difference Toggle */}
+                {/* Handicap Mode Toggle (UPDATED) */}
                 <div>
                    <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Handicap Calc</label>
                    <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700">
-                        <button onClick={() => setUseHandicapDiff(false)} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${!useHandicapDiff ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>Full</button>
-                        <button onClick={() => setUseHandicapDiff(true)} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${useHandicapDiff ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>
-                            <span className="flex items-center justify-center"><Percent size={12} className="mr-1"/> Difference</span>
+                        <button onClick={() => setHandicapMode('full')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${handicapMode === 'full' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>Full</button>
+                        <button onClick={() => setHandicapMode('95')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${handicapMode === '95' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>
+                            <span className="flex items-center justify-center"><Percent size={12} className="mr-1"/> 95%</span>
                         </button>
+                        <button onClick={() => setHandicapMode('diff')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${handicapMode === 'diff' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>Diff</button>
                    </div>
                 </div>
                 
@@ -1079,7 +1087,8 @@ export default function App() {
   const [si, setSi] = useState(DEFAULT_SI);
   const [gameMode, setGameMode] = useState('stroke'); 
   const [teamMode, setTeamMode] = useState('singles'); // 'singles' or 'pairs' 
-  const [useHandicapDiff, setUseHandicapDiff] = useState(false);
+  // Replaced useHandicapDiff boolean with handicapMode string
+  const [handicapMode, setHandicapMode] = useState('full'); // 'full', '95', 'diff'
   const [holesMode, setHolesMode] = useState('18'); // '18', 'front9', 'back9'
   
   const activePars = gameSettings?.pars || DEFAULT_PARS;
@@ -1112,7 +1121,6 @@ export default function App() {
 
   useEffect(() => {
       if (!user) return;
-      // Fixed: used APP_ID instead of appId
       const q = query(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'saved_players'));
       const unsubscribe = onSnapshot(q, (snapshot) => { 
           const sp = []; 
@@ -1126,7 +1134,6 @@ export default function App() {
   useEffect(() => {
     if (!user || !gameId) return;
     setLoading(true);
-    // Fixed: used APP_ID instead of appId
     const settingsRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, `SETTINGS_${gameId}`);
     const unsubSettings = onSnapshot(settingsRef, (docSnap) => {
         if (docSnap.exists()) { 
@@ -1136,7 +1143,6 @@ export default function App() {
         } 
         setLoading(false);
     }, (err) => console.error(err));
-    // Fixed: used APP_ID instead of appId
     const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME), where('gameId', '==', gameId.toUpperCase()), where('type', '==', 'player'));
     const unsubPlayers = onSnapshot(q, (snapshot) => { const playerData = []; snapshot.forEach((doc) => { playerData.push({ id: doc.id, ...doc.data() }); }); setPlayers(playerData); }, (err) => console.error(err));
     return () => { unsubSettings(); unsubPlayers(); };
@@ -1149,19 +1155,17 @@ export default function App() {
       const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
       const settingsId = `SETTINGS_${newCode}`;
       const totalPar = pars.reduce((a, b) => a + b, 0);
-      // Fixed: used APP_ID instead of appId
       await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, settingsId), { 
-          courseName, slope, rating, pars, si, totalPar, gameMode, teamMode, useHandicapDiff, holesMode,
+          courseName, slope, rating, pars, si, totalPar, gameMode, teamMode, handicapMode, holesMode,
           createdAt: new Date().toISOString() 
       });
-      await joinGameLogic(newCode, courseName, slope, rating, totalPar, hostAvatarUrl, holesMode);
+      await joinGameLogic(newCode, courseName, slope, rating, totalPar, hostAvatarUrl, holesMode, handicapMode);
       if (friendsToAdd.length > 0) {
           const batch = writeBatch(db);
           friendsToAdd.forEach(friend => {
               const guestId = `guest_${Math.random().toString(36).substring(2, 9)}`;
-              // Fixed: used APP_ID instead of appId
               const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, `${newCode}_${guestId}`);
-              const ch = calculateCourseHandicap(friend.handicap, slope, rating, totalPar, holesMode);
+              const ch = calculateCourseHandicap(friend.handicap, slope, rating, totalPar, holesMode, handicapMode);
               batch.set(docRef, { 
                   gameId: newCode, 
                   userId: guestId, 
@@ -1182,23 +1186,23 @@ export default function App() {
   const handleJoinGame = async () => {
     if (!playerName.trim() || !joinCodeInput.trim()) { setError("Name and Code required"); return; }
     const code = joinCodeInput.toUpperCase();
-    // Fixed: used APP_ID instead of appId
     const settingsRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, `SETTINGS_${code}`);
     const snap = await getDoc(settingsRef);
     if (!snap.exists()) { setError("Game code not found"); return; }
     const settings = snap.data();
-    await joinGameLogic(code, settings.courseName, settings.slope, settings.rating, settings.totalPar, '', settings.holesMode);
+    // Backward compatibility for old games without handicapMode
+    const mode = settings.handicapMode || (settings.useHandicapDiff ? 'diff' : 'full');
+    await joinGameLogic(code, settings.courseName, settings.slope, settings.rating, settings.totalPar, '', settings.holesMode, mode);
   };
 
-  const joinGameLogic = async (code, cName, cSlope, cRating, cTotalPar, avatarUrl = '', hMode = '18') => {
+  const joinGameLogic = async (code, cName, cSlope, cRating, cTotalPar, avatarUrl = '', hMode = '18', hcpMode = 'full') => {
     setLoading(true);
     setGameId(code);
     localStorage.setItem('golf_game_id', code);
     localStorage.setItem('golf_player_name', playerName);
     localStorage.setItem('golf_player_hcp', handicapIndex);
-    const ch = calculateCourseHandicap(handicapIndex, cSlope, cRating, cTotalPar, hMode);
+    const ch = calculateCourseHandicap(handicapIndex, cSlope, cRating, cTotalPar, hMode, hcpMode);
     const playerDocId = `${code}_${user.uid}`;
-    // Fixed: used APP_ID instead of appId
     await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, playerDocId), { 
         gameId: code, 
         userId: user.uid, 
@@ -1221,7 +1225,6 @@ export default function App() {
     const currentScores = targetPlayer.scores || {};
     const newScores = { ...currentScores, [hole]: strokes };
     try { 
-        // Fixed: used APP_ID instead of appId
         await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, playerDocId), { scores: newScores }, { merge: true }); 
         setSyncStatus('saved'); 
     } catch (e) { console.error("Sync error:", e); setSyncStatus('error'); }
@@ -1229,7 +1232,6 @@ export default function App() {
 
   const updatePlayerGroup = async (playerId, groupNum) => {
       if (!playerId) return;
-      // Fixed: used APP_ID instead of appId
       const playerDoc = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, playerId);
       try {
           await updateDoc(playerDoc, { teeGroup: groupNum });
@@ -1244,10 +1246,10 @@ export default function App() {
       if (!newGuestName.trim()) return;
       if (!gameId) return;
       const guestId = `guest_${Math.random().toString(36).substring(2, 9)}`;
-      // Fixed: used APP_ID instead of appId
       const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, `${gameId}_${guestId}`);
       const cSettings = gameSettings || {};
-      const ch = calculateCourseHandicap(newGuestHcp, cSettings.slope, cSettings.rating, cSettings.totalPar, cSettings.holesMode);
+      const mode = cSettings.handicapMode || (cSettings.useHandicapDiff ? 'diff' : 'full');
+      const ch = calculateCourseHandicap(newGuestHcp, cSettings.slope, cSettings.rating, cSettings.totalPar, cSettings.holesMode, mode);
       await setDoc(docRef, { 
           gameId: gameId, 
           userId: guestId, 
@@ -1269,7 +1271,6 @@ export default function App() {
       for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
       const batch = writeBatch(db);
       shuffled.forEach((p, index) => { const groupNum = Math.floor(index / groupSize) + 1; 
-          // Fixed: used APP_ID instead of appId
           const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, p.id); 
           batch.update(docRef, { teeGroup: groupNum }); 
       });
@@ -1323,7 +1324,8 @@ export default function App() {
                 savedPlayers={savedPlayers} 
                 error={error} 
                 teamMode={teamMode} setTeamMode={setTeamMode}
-                useHandicapDiff={useHandicapDiff} setUseHandicapDiff={setUseHandicapDiff}
+                // NEW PROPS
+                handicapMode={handicapMode} setHandicapMode={setHandicapMode}
                 holesMode={holesMode} setHolesMode={setHolesMode}
             />
         )}
