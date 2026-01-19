@@ -120,6 +120,8 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
 			    <option value="ombria_yellow">Ombria - Yellow</option>
 			    <option value="laranjal_white">QDL Laranjal - White</option>
 			    <option value="laranjal_gold">QDL Laranjal - Gold (Yellow)</option>
+			    <option value="monterei_north_tournament">Monte Rei North - Tournament</option>
+			    <option value="monterei_north_championship">Monte Rei North - Championship</option>
                         </select>
                     ) : (
                         <div className="space-y-2">

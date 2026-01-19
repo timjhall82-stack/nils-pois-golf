@@ -1,4 +1,4 @@
-export const APP_VERSION = "v3.8.2 Jan 19th 2026 21:31";
+export const APP_VERSION = "v3.8.2 Jan 19th 2026 21:45";
 export const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
 export const APP_ID = "nils-pois-golf-v5"; 
 export const COLLECTION_NAME = 'golf_scores';
@@ -129,6 +129,22 @@ export const PRESET_COURSES = {
     rating: 71.1,
     pars: [4, 3, 4, 4, 4, 3, 5, 3, 5, 4, 4, 3, 5, 4, 5, 3, 4, 5],
     si:   [15, 11, 5, 9, 3, 17, 1, 13, 7, 6, 18, 10, 16, 4, 8, 2, 14, 12]
+  },
+
+// --- MONTE REI: NORTH COURSE ---
+  'monterei_north_tournament': {
+    name: "Monte Rei North (Tournament/Black)",
+    slope: 147,
+    rating: 75.6,
+    pars: [4, 5, 4, 4, 3, 5, 3, 5, 3, 4, 3, 4, 4, 3, 4, 5, 4, 5],
+    si:   [10, 6, 2, 14, 16, 4, 8, 12, 18, 5, 11, 7, 9, 17, 1, 13, 3, 15]
+  },
+  'monterei_north_championship': {
+    name: "Monte Rei North (Champ/Gold)",
+    slope: 142,
+    rating: 72.9,
+    pars: [4, 5, 4, 4, 3, 5, 3, 5, 3, 4, 3, 4, 4, 3, 4, 5, 4, 5],
+    si:   [10, 6, 2, 14, 16, 4, 8, 12, 18, 5, 11, 7, 9, 17, 1, 13, 3, 15]
   }
   // ... Add other courses here
 };
