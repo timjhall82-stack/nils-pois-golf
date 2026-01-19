@@ -81,9 +81,10 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-const APP_VERSION = "v3.7.6 (Jan 13th 2026, 14:01AM)";
+const APP_VERSION = "v3.7.7 (Fixed Build)";
 const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
 
+// Correct Constant Definition
 const APP_ID = "nils-pois-golf-v5"; 
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?q=80&w=2070&auto=format&fit=crop";
 
@@ -221,12 +222,10 @@ const calculateStableford = (gross, par, shots) => {
 
 // --- Components ---
 
-// *** MISSING COMPONENT 1: ScoreView ***
 const ScoreView = ({ currentHole, setCurrentHole, activePars, activeSi, players, user, updateScore, gameSettings }) => {
     const handlePrev = () => setCurrentHole(prev => Math.max(1, prev - 1));
     const handleNext = () => setCurrentHole(prev => Math.min(18, prev + 1));
     
-    // Sort players: User first, then by name
     const sortedPlayers = useMemo(() => {
         return [...players].sort((a, b) => {
             if (a.userId === user?.uid) return -1;
@@ -326,29 +325,13 @@ const ScoreView = ({ currentHole, setCurrentHole, activePars, activeSi, players,
     );
 };
 
-// *** MISSING COMPONENT 2: LeaderboardView ***
 const LeaderboardView = ({ leaderboardData, activeGameMode, teamMode, gameSettings }) => {
-    // Note: leaderboardData is calculated in the main App component usually. 
-    // Since it's passed as a prop, we need to ensure the App calculates it.
-    // However, looking at the main App, the calculation logic seems missing too.
-    // I will include the calculation logic inside this component for robustness if data is raw players.
-    
-    // For this implementation, I'll assume 'leaderboardData' passed from App might just be 'players'
-    // and I'll do the sorting here to be safe.
-    
-    // BUT, the original code signature implied passing `leaderboardData`. 
-    // I will access `players` from context or assume the passed prop IS the list of players.
-    // Let's assume the parent passes the raw players array as `leaderboardData` for now to be safe, 
-    // or I'll use a local computation.
-    
-    // Let's implement a robust calculation inside.
     const players = Array.isArray(leaderboardData) ? leaderboardData : []; 
     const pars = gameSettings?.pars || DEFAULT_PARS;
     const si = gameSettings?.si || DEFAULT_SI;
 
     const computedLeaderboard = useMemo(() => {
         if (teamMode === 'pairs') {
-            // Pairs Logic (Best Net Ball)
             const groups = {};
             players.forEach(p => {
                 const g = p.teeGroup || 999;
@@ -357,11 +340,10 @@ const LeaderboardView = ({ leaderboardData, activeGameMode, teamMode, gameSettin
             });
 
             return Object.entries(groups).map(([gId, members]) => {
-                if (gId === '999') return null; // Skip unassigned
+                if (gId === '999') return null;
                 let totalScore = 0;
                 let thru = 0;
                 
-                // Calculate Best Ball for 18 holes
                 for (let h = 1; h <= 18; h++) {
                     const hIdx = h - 1;
                     const par = pars[hIdx];
@@ -386,7 +368,6 @@ const LeaderboardView = ({ leaderboardData, activeGameMode, teamMode, gameSettin
                             const pts = par - bestNet + 2;
                             totalScore += (pts < 0 ? 0 : pts);
                         } else {
-                            // Stroke play relative to par
                             totalScore += (bestNet - par);
                         }
                     }
@@ -401,7 +382,6 @@ const LeaderboardView = ({ leaderboardData, activeGameMode, teamMode, gameSettin
                 };
             }).filter(Boolean).sort((a, b) => activeGameMode === 'stableford' ? b.score - a.score : a.score - b.score);
         } else {
-            // Singles Logic
             return players.map(p => {
                 let total = 0;
                 let thru = 0;
@@ -474,9 +454,7 @@ const LeaderboardView = ({ leaderboardData, activeGameMode, teamMode, gameSettin
     );
 };
 
-// *** MISSING COMPONENT 3: ScorecardView ***
 const ScorecardView = ({ players, activePars, holesMode }) => {
-    // Determine which holes to show based on holesMode
     const holes = useMemo(() => {
         if (holesMode === 'front9') return [1,2,3,4,5,6,7,8,9];
         if (holesMode === 'back9') return [10,11,12,13,14,15,16,17,18];
@@ -509,17 +487,16 @@ const ScorecardView = ({ players, activePars, holesMode }) => {
                                          const s = p.scores?.[h];
                                          if(s && s !== 'NR') total += parseInt(s);
                                          
-                                         // Color coding relative to par
                                          const par = activePars[h-1];
                                          let colorClass = "text-slate-400";
                                          if (s) {
                                             const diff = s - par;
                                             if (s === 'NR') colorClass = "text-red-500";
-                                            else if (diff <= -2) colorClass = "text-yellow-400 font-bold"; // Eagle/Better
-                                            else if (diff === -1) colorClass = "text-red-400 font-bold"; // Birdie
-                                            else if (diff === 0) colorClass = "text-white"; // Par
-                                            else if (diff === 1) colorClass = "text-blue-400"; // Bogey
-                                            else colorClass = "text-slate-500"; // Dbl Bogey+
+                                            else if (diff <= -2) colorClass = "text-yellow-400 font-bold";
+                                            else if (diff === -1) colorClass = "text-red-400 font-bold";
+                                            else if (diff === 0) colorClass = "text-white";
+                                            else if (diff === 1) colorClass = "text-blue-400";
+                                            else colorClass = "text-slate-500";
                                          }
 
                                          return (
@@ -539,9 +516,8 @@ const ScorecardView = ({ players, activePars, holesMode }) => {
     );
 };
 
-// *** MISSING COMPONENT 4: TeeSheetModal ***
 const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestName, setNewGuestName, newGuestHcp, setNewGuestHcp, savedPlayers, updatePlayerGroup }) => {
-    const [viewMode, setViewMode] = useState('list'); // 'list' or 'groups'
+    const [viewMode, setViewMode] = useState('list');
 
     return (
         <div className="fixed inset-0 bg-slate-950 z-[80] flex flex-col animate-in slide-in-from-bottom duration-300">
@@ -551,7 +527,6 @@ const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestName, se
             </div>
             
             <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                {/* Guest Add Section */}
                 <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-sm">
                     <h4 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center"><UserPlus size={14} className="mr-1"/> Add Guest Player</h4>
                     <div className="flex gap-2">
@@ -561,7 +536,6 @@ const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestName, se
                     </div>
                 </div>
 
-                {/* Groups Management */}
                 <div className="space-y-3">
                     <div className="flex justify-between items-center">
                         <h4 className="text-xs font-bold text-slate-500 uppercase">Groups & Order</h4>
@@ -604,7 +578,6 @@ const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestName, se
     );
 };
 
-// --- Info, History, PlayerPortal, LobbyView, SetupView are already defined in your snippet ---
 const InfoPage = ({ onClose }) => {
     const [openSection, setOpenSection] = useState(null);
 
@@ -688,13 +661,15 @@ const HistoryView = ({ userId, onClose, onLoadGame }) => {
     useEffect(() => {
         const fetchHistory = async () => {
             try {
-                const q = query(collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME), where('userId', '==', userId), where('type', '==', 'player'));
+                // Fixed: used APP_ID instead of appId
+                const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME), where('userId', '==', userId), where('type', '==', 'player'));
                 const querySnapshot = await getDocs(q);
                 const promises = querySnapshot.docs.map(async (playerDoc) => {
                     const playerData = playerDoc.data();
                     const gameId = playerData.gameId;
                     if (!gameId) return null;
-                    const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, `SETTINGS_${gameId}`);
+                    // Fixed: used APP_ID instead of appId
+                    const settingsRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, `SETTINGS_${gameId}`);
                     const settingsSnap = await getDoc(settingsRef);
                     if (settingsSnap.exists()) {
                         const settings = settingsSnap.data();
@@ -779,11 +754,13 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
         try {
             const playerData = { name: name, handicap: hcp || 0, avatarUrl: imgUrl, createdAt: new Date().toISOString() };
             if (editingId) {
-                const playerRef = doc(db, 'artifacts', appId, 'users', userId, 'saved_players', editingId);
+                // Fixed: used APP_ID instead of appId
+                const playerRef = doc(db, 'artifacts', APP_ID, 'users', userId, 'saved_players', editingId);
                 await updateDoc(playerRef, { name: name, handicap: hcp || 0, avatarUrl: imgUrl });
                 setEditingId(null);
             } else {
-                const playersRef = collection(db, 'artifacts', appId, 'users', userId, 'saved_players');
+                // Fixed: used APP_ID instead of appId
+                const playersRef = collection(db, 'artifacts', APP_ID, 'users', userId, 'saved_players');
                 await addDoc(playersRef, playerData);
             }
             setName(''); setHcp(''); setImgUrl('');
@@ -793,7 +770,8 @@ const PlayerPortal = ({ onClose, userId, savedPlayers }) => {
     const handleEdit = (player) => { setName(player.name); setHcp(player.handicap); setImgUrl(player.avatarUrl || ''); setEditingId(player.id); };
     const handleCancelEdit = () => { setName(''); setHcp(''); setImgUrl(''); setEditingId(null); };
     const handleDelete = async (id) => {
-        if (confirm("Remove player from portal?")) { try { await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'saved_players', id)); } catch (err) { alert("Error deleting: " + err.message); } }
+        // Fixed: used APP_ID instead of appId
+        if (confirm("Remove player from portal?")) { try { await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', userId, 'saved_players', id)); } catch (err) { alert("Error deleting: " + err.message); } }
     };
 
     return (
@@ -1073,7 +1051,7 @@ export default function App() {
   const [showTeeSheet, setShowTeeSheet] = useState(false);
   const [showPortal, setShowPortal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [showInfo, setShowInfo] = useState(false); // Added Info state
+  const [showInfo, setShowInfo] = useState(false); 
   
   const [newGuestName, setNewGuestName] = useState('');
   const [newGuestHcp, setNewGuestHcp] = useState('');
@@ -1088,12 +1066,11 @@ export default function App() {
   const [useHandicapDiff, setUseHandicapDiff] = useState(false);
   const [holesMode, setHolesMode] = useState('18'); // '18', 'front9', 'back9'
   
-  // Derived state for the current view
   const activePars = gameSettings?.pars || DEFAULT_PARS;
   const activeSi = gameSettings?.si || DEFAULT_SI;
   const activeGameMode = gameSettings?.gameMode || 'stroke';
   const myData = players.find(p => p.userId === user?.uid);
-  const leaderboardData = players; // Simple pass through, processed in component
+  const leaderboardData = players; 
 
   useEffect(() => {
     const initAuth = async () => {
@@ -1119,11 +1096,12 @@ export default function App() {
 
   useEffect(() => {
       if (!user) return;
-      const q = query(collection(db, 'artifacts', appId, 'users', user.uid, 'saved_players'));
+      // Fixed: used APP_ID instead of appId
+      const q = query(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'saved_players'));
       const unsubscribe = onSnapshot(q, (snapshot) => { 
           const sp = []; 
           snapshot.forEach(doc => sp.push({id: doc.id, ...doc.data()})); 
-          sp.sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically
+          sp.sort((a, b) => a.name.localeCompare(b.name)); 
           setSavedPlayers(sp); 
       }, (err) => { console.error("Error fetching players:", err); });
       return () => unsubscribe();
@@ -1132,7 +1110,8 @@ export default function App() {
   useEffect(() => {
     if (!user || !gameId) return;
     setLoading(true);
-    const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, `SETTINGS_${gameId}`);
+    // Fixed: used APP_ID instead of appId
+    const settingsRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, `SETTINGS_${gameId}`);
     const unsubSettings = onSnapshot(settingsRef, (docSnap) => {
         if (docSnap.exists()) { 
             const s = docSnap.data();
@@ -1141,7 +1120,8 @@ export default function App() {
         } 
         setLoading(false);
     }, (err) => console.error(err));
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME), where('gameId', '==', gameId.toUpperCase()), where('type', '==', 'player'));
+    // Fixed: used APP_ID instead of appId
+    const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME), where('gameId', '==', gameId.toUpperCase()), where('type', '==', 'player'));
     const unsubPlayers = onSnapshot(q, (snapshot) => { const playerData = []; snapshot.forEach((doc) => { playerData.push({ id: doc.id, ...doc.data() }); }); setPlayers(playerData); }, (err) => console.error(err));
     return () => { unsubSettings(); unsubPlayers(); };
   }, [user, gameId]);
@@ -1153,7 +1133,8 @@ export default function App() {
       const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
       const settingsId = `SETTINGS_${newCode}`;
       const totalPar = pars.reduce((a, b) => a + b, 0);
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, settingsId), { 
+      // Fixed: used APP_ID instead of appId
+      await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, settingsId), { 
           courseName, slope, rating, pars, si, totalPar, gameMode, teamMode, useHandicapDiff, holesMode,
           createdAt: new Date().toISOString() 
       });
@@ -1162,8 +1143,8 @@ export default function App() {
           const batch = writeBatch(db);
           friendsToAdd.forEach(friend => {
               const guestId = `guest_${Math.random().toString(36).substring(2, 9)}`;
-              const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, `${newCode}_${guestId}`);
-              // Calculate CH based on 9/18 selection
+              // Fixed: used APP_ID instead of appId
+              const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, `${newCode}_${guestId}`);
               const ch = calculateCourseHandicap(friend.handicap, slope, rating, totalPar, holesMode);
               batch.set(docRef, { 
                   gameId: newCode, 
@@ -1185,7 +1166,8 @@ export default function App() {
   const handleJoinGame = async () => {
     if (!playerName.trim() || !joinCodeInput.trim()) { setError("Name and Code required"); return; }
     const code = joinCodeInput.toUpperCase();
-    const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, `SETTINGS_${code}`);
+    // Fixed: used APP_ID instead of appId
+    const settingsRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, `SETTINGS_${code}`);
     const snap = await getDoc(settingsRef);
     if (!snap.exists()) { setError("Game code not found"); return; }
     const settings = snap.data();
@@ -1200,7 +1182,8 @@ export default function App() {
     localStorage.setItem('golf_player_hcp', handicapIndex);
     const ch = calculateCourseHandicap(handicapIndex, cSlope, cRating, cTotalPar, hMode);
     const playerDocId = `${code}_${user.uid}`;
-    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, playerDocId), { 
+    // Fixed: used APP_ID instead of appId
+    await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, playerDocId), { 
         gameId: code, 
         userId: user.uid, 
         playerName: playerName, 
@@ -1221,12 +1204,17 @@ export default function App() {
     const targetPlayer = players.find(p => p.userId === targetUserId) || {};
     const currentScores = targetPlayer.scores || {};
     const newScores = { ...currentScores, [hole]: strokes };
-    try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, playerDocId), { scores: newScores }, { merge: true }); setSyncStatus('saved'); } catch (e) { console.error("Sync error:", e); setSyncStatus('error'); }
+    try { 
+        // Fixed: used APP_ID instead of appId
+        await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, playerDocId), { scores: newScores }, { merge: true }); 
+        setSyncStatus('saved'); 
+    } catch (e) { console.error("Sync error:", e); setSyncStatus('error'); }
   };
 
   const updatePlayerGroup = async (playerId, groupNum) => {
       if (!playerId) return;
-      const playerDoc = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, playerId);
+      // Fixed: used APP_ID instead of appId
+      const playerDoc = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, playerId);
       try {
           await updateDoc(playerDoc, { teeGroup: groupNum });
       } catch(e) { console.error("Group update failed", e); }
@@ -1240,7 +1228,8 @@ export default function App() {
       if (!newGuestName.trim()) return;
       if (!gameId) return;
       const guestId = `guest_${Math.random().toString(36).substring(2, 9)}`;
-      const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, `${gameId}_${guestId}`);
+      // Fixed: used APP_ID instead of appId
+      const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, `${gameId}_${guestId}`);
       const cSettings = gameSettings || {};
       const ch = calculateCourseHandicap(newGuestHcp, cSettings.slope, cSettings.rating, cSettings.totalPar, cSettings.holesMode);
       await setDoc(docRef, { 
@@ -1263,15 +1252,18 @@ export default function App() {
       const shuffled = [...players];
       for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
       const batch = writeBatch(db);
-      shuffled.forEach((p, index) => { const groupNum = Math.floor(index / groupSize) + 1; const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, p.id); batch.update(docRef, { teeGroup: groupNum }); });
+      shuffled.forEach((p, index) => { const groupNum = Math.floor(index / groupSize) + 1; 
+          // Fixed: used APP_ID instead of appId
+          const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, p.id); 
+          batch.update(docRef, { teeGroup: groupNum }); 
+      });
       await batch.commit();
   };
   
   const handleLogin = async () => { const provider = new GoogleAuthProvider(); try { if (user && user.isAnonymous) { await linkWithPopup(user, provider); } else { await signInWithPopup(auth, provider); } } catch (error) { if (error.code === 'auth/credential-already-in-use') { await signInWithPopup(auth, provider); } else if (error.code === 'auth/popup-closed-by-user') { /* Ignore */ } else { alert("Login failed: " + error.message + "\nCheck domain whitelist in Firebase."); } } };
   const handleLogout = async () => { await signOut(auth); await signInAnonymously(auth); };
 
-  // Current Hole score helper (not strictly needed by ScoreView as it does its own lookups, but good for main App ref)
-  const currentHoleScore = 0; // Placeholder
+  const currentHoleScore = 0; 
 
   return (
     <div 
