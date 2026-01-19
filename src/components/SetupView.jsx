@@ -108,14 +108,23 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                             <option value="" disabled>Or select preset...</option>
                             <option value="olton_white">Olton GC - White (Men)</option>
                             <option value="olton_yellow">Olton GC - Yellow (Men)</option>
-                            <option value="olton_red">Olton GC - Red (Ladies)</option>
+                            //<option value="olton_red">Olton GC - Red (Ladies)</option>
                             <option value="fairhaven_white">Fairhaven GC - White</option>
                             <option value="fairhaven_yellow">Fairhaven GC - Yellow</option>
                             <option value="moorpark_high_white">Moor Park - High (White)</option>
                             <option value="moorpark_high_yellow">Moor Park - High (Yellow)</option>
-                            <option value="moorpark_high_red">Moor Park - High (Red)</option>
+                            //<option value="moorpark_high_red">Moor Park - High (Red)</option>
                             <option value="moorpark_west_white">Moor Park - West (White)</option>
                             <option value="moorpark_west_yellow">Moor Park - West (Yellow)</option>
+			    <option value="valedolobo_ocean_white">Vale do Lobo Ocean (White)</option>
+			    <option value="valedolobo_ocean_yellow">Vale do Lobo Ocean (Yellow)</option>
+			    //<option value="valedolobo_ocean_red">Vale do Lobo Ocean (Red)</option>
+			    <option value="ombria_white">Ombria - White</option>
+			    <option value="ombria_yellow">Ombria - Yellow</option>
+			    //<option value="ombria_red">Ombria - Red (Ladies)</option>
+			    <option value="laranjal_white">QDL Laranjal - White</option>
+			    <option value="laranjal_gold">QDL Laranjal - Gold (Yellow)</option>
+			    //<option value="laranjal_silver">QDL Laranjal - Silver (Red)</option>
                         </select>
                     ) : (
                         <div className="space-y-2">
