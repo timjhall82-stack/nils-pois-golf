@@ -81,7 +81,7 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION & CONSTANTS ---
-const APP_VERSION = "v3.7.8 (Stableford Card Update)";
+const APP_VERSION = "v3.7.7 (Fixed Build)";
 const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
 
 // Correct Constant Definition
@@ -454,8 +454,7 @@ const LeaderboardView = ({ leaderboardData, activeGameMode, teamMode, gameSettin
     );
 };
 
-// Updated ScorecardView to show Stableford Points
-const ScorecardView = ({ players, activePars, activeSi, holesMode, gameMode }) => {
+const ScorecardView = ({ players, activePars, holesMode }) => {
     const holes = useMemo(() => {
         if (holesMode === 'front9') return [1,2,3,4,5,6,7,8,9];
         if (holesMode === 'back9') return [10,11,12,13,14,15,16,17,18];
@@ -486,23 +485,12 @@ const ScorecardView = ({ players, activePars, activeSi, holesMode, gameMode }) =
                                      </td>
                                      {holes.map(h => {
                                          const s = p.scores?.[h];
-                                         let points = 0;
-                                         
                                          if(s && s !== 'NR') total += parseInt(s);
                                          
                                          const par = activePars[h-1];
-                                         const si = activeSi[h-1]; // Get stroke index for this hole
-                                         
                                          let colorClass = "text-slate-400";
                                          if (s) {
                                             const diff = s - par;
-                                            
-                                            // Calculate Stableford points for display
-                                            if (gameMode === 'stableford') {
-                                                const shots = getShotsOnHole(p.courseHandicap, si);
-                                                points = calculateStableford(s, par, shots);
-                                            }
-
                                             if (s === 'NR') colorClass = "text-red-500";
                                             else if (diff <= -2) colorClass = "text-yellow-400 font-bold";
                                             else if (diff === -1) colorClass = "text-red-400 font-bold";
@@ -514,10 +502,6 @@ const ScorecardView = ({ players, activePars, activeSi, holesMode, gameMode }) =
                                          return (
                                              <td key={h} className={`p-2 text-xs border-r border-slate-800/50 ${colorClass}`}>
                                                  {s || '-'}
-                                                 {/* Render points if mode is stableford and score exists */}
-                                                 {gameMode === 'stableford' && s && s !== 'NR' && (
-                                                     <sub className="text-[9px] text-yellow-500/80 ml-0.5 align-baseline font-normal">({points})</sub>
-                                                 )}
                                              </td>
                                          );
                                      })}
@@ -1370,9 +1354,7 @@ export default function App() {
                         <ScorecardView 
                             players={players} 
                             activePars={activePars} 
-                            activeSi={activeSi}
                             holesMode={gameSettings?.holesMode || '18'} 
-                            gameMode={activeGameMode}
                         />
                     )}
                     
