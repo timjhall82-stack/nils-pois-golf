@@ -1,7 +1,20 @@
 import React, { useMemo } from 'react';
-import { getShotsOnHole, calculateStableford } from '../utils/golfLogic';
+import { getShotsOnHole, calculateStableford } from '../utils/scoring'; // Adjust path if needed
 
 const ScorecardView = ({ players, activePars, activeSi, holesMode, gameMode }) => {
+    // FIX: Sort players by Tee Group (Group 1, Group 2...) before rendering
+    const sortedPlayers = useMemo(() => {
+        return [...players].sort((a, b) => {
+            // Sort by Group Number (1, 2, 3...)
+            const groupA = a.teeGroup || 99;
+            const groupB = b.teeGroup || 99;
+            if (groupA !== groupB) return groupA - groupB;
+            
+            // If same group, sort Alphabetically
+            return a.playerName.localeCompare(b.playerName);
+        });
+    }, [players]);
+
     const holes = useMemo(() => {
         if (holesMode === 'front9') return [1,2,3,4,5,6,7,8,9];
         if (holesMode === 'back9') return [10,11,12,13,14,15,16,17,18];
@@ -22,13 +35,16 @@ const ScorecardView = ({ players, activePars, activeSi, holesMode, gameMode }) =
                          </tr>
                      </thead>
                      <tbody>
-                        {players.map((p, idx) => {
+                        {sortedPlayers.map((p, idx) => {
                              let total = 0;
                              return (
                                  <tr key={p.id} className={idx % 2 === 0 ? 'bg-slate-800/30' : ''}>
                                      <td className="sticky left-0 bg-slate-900/95 z-10 p-2 text-left border-r border-slate-800">
                                          <div className="font-bold text-xs text-white truncate max-w-[90px]">{p.playerName}</div>
-                                         <div className="text-[9px] text-slate-500">CH {p.courseHandicap}</div>
+                                         <div className="flex items-center gap-1">
+                                             {p.teeGroup && <span className="text-[9px] bg-slate-800 px-1 rounded border border-slate-700 text-slate-400">G{p.teeGroup}</span>}
+                                             <span className="text-[9px] text-slate-500">CH {p.courseHandicap}</span>
+                                         </div>
                                      </td>
                                      {holes.map(h => {
                                          const s = p.scores?.[h];
