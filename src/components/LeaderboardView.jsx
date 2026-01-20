@@ -1,6 +1,9 @@
 import React, { useMemo } from 'react';
 import { Trophy, User } from 'lucide-react';
-import { getShotsOnHole, DEFAULT_PARS, DEFAULT_SI } from '../utils/constants'; // Adjust imports
+
+// FIX: Import logic from scoring.js and constants from constants.js
+import { getShotsOnHole } from '../utils/scoring'; 
+import { DEFAULT_PARS, DEFAULT_SI } from '../utils/constants';
 
 const LeaderboardView = ({ leaderboardData, activeGameMode, teamMode, gameSettings }) => {
     const players = Array.isArray(leaderboardData) ? leaderboardData : []; 
