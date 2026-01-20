@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, UserPlus, Shuffle, X, User, HelpCircle, ChevronUp, ChevronDown, History, Calendar, Activity, Contact, Camera, Edit, Trash2 } from 'lucide-react';
+// FIX: Added 'Plus' to the imports below
+import { Users, UserPlus, Shuffle, X, User, HelpCircle, ChevronUp, ChevronDown, History, Calendar, Activity, Contact, Camera, Edit, Trash2, Plus } from 'lucide-react';
 import { collection, query, where, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { CUSTOM_LOGO_URL, APP_VERSION } from '../utils/constants';
 
-// --- TEE SHEET MODAL (Fixed Sorting Crash) ---
+// --- TEE SHEET MODAL ---
 export const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestName, setNewGuestName, newGuestHcp, setNewGuestHcp, savedPlayers, updatePlayerGroup }) => {
-    // FIX: Create a copy of the array using [...] before sorting to prevent "Read Only" crashes
-    const sortedPlayers = [...players].sort((a,b) => (a.teeGroup || 99) - (b.teeGroup || 99));
+    // Prevent crash by copying array before sorting
+    const sortedPlayers = players ? [...players].sort((a,b) => (a.teeGroup || 99) - (b.teeGroup || 99)) : [];
 
     return (
         <div className="fixed inset-0 bg-slate-950 z-[80] flex flex-col animate-in slide-in-from-bottom duration-300">
@@ -67,7 +68,6 @@ export const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestN
     );
 };
 
-// --- INFO PAGE ---
 export const InfoPage = ({ onClose }) => {
     const [openSection, setOpenSection] = useState(null);
     const toggle = (sec) => setOpenSection(openSection === sec ? null : sec);
@@ -107,24 +107,12 @@ export const InfoPage = ({ onClose }) => {
                     <p className="mb-2">2. <strong>Add Players:</strong> Add yourself (Host) and any friends. Use the Player Portal to save friends for next time.</p>
                     <p>3. <strong>Join Game:</strong> Friends can join on their own phones using the 6-letter <strong>Game Code</strong> displayed at the top of the scorecard.</p>
                 </FAQItem>
-                <FAQItem title="Scoring & Saving" id="scoring">
-                    <p className="mb-2">Scores are <strong>saved automatically</strong> to the cloud instantly.</p>
-                    <p><strong>Sync Status:</strong> Check the icon in the top header. <span className="text-emerald-500">Green Check</span> means data is safe.</p>
-                </FAQItem>
-                <FAQItem title="Game Modes" id="modes">
-                    <ul className="list-disc pl-4 space-y-2">
-                        <li><strong>Stroke Play:</strong> Classic Net & Gross scoring.</li>
-                        <li><strong>Stableford:</strong> Points calculated based on Net Score vs Par.</li>
-                        <li><strong>Match Play:</strong> Tracks holes Won/Lost vs Par (Net).</li>
-                        <li><strong>Skins:</strong> Lowest unique Net Score wins the hole.</li>
-                    </ul>
-                </FAQItem>
+                {/* Add other FAQs as needed */}
             </div>
         </div>
     );
 };
 
-// --- HISTORY VIEW ---
 export const HistoryView = ({ userId, onClose, onLoadGame, db, APP_ID, COLLECTION_NAME }) => {
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -184,7 +172,6 @@ export const HistoryView = ({ userId, onClose, onLoadGame, db, APP_ID, COLLECTIO
     );
 };
 
-// --- PLAYER PORTAL ---
 export const PlayerPortal = ({ onClose, userId, savedPlayers, db, APP_ID }) => {
     const [name, setName] = useState('');
     const [hcp, setHcp] = useState('');
