@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -67,7 +67,6 @@ const db = getFirestore(app);
 
 // --- Helper Functions ---
 
-// Keep this here so 'createGame' can use it easily without extra imports
 const calculateCourseHandicap = (index, slopeVal, ratingVal, parVal, holesMode = '18', handicapMode = 'full') => {
     if (!index || index === '') return 0;
     let idx = parseFloat(index);
@@ -149,7 +148,6 @@ export default function App() {
 
   // 1. Handle the "Back" button press
   useEffect(() => {
-    // Ensure we have a starting state
     if (!window.history.state) {
       window.history.replaceState({ view: 'lobby' }, '');
     }
@@ -159,11 +157,9 @@ export default function App() {
       
       // PROTECTION: If in game and hitting back, confirm exit
       if (view === 'score' && (destView === 'lobby' || destView === 'setup')) {
-        // Cancel back nav by pushing state back
         window.history.pushState({ view: 'score' }, '');
         setShowExitModal(true);
       } else {
-        // Allow navigation
         isBackNav.current = true;
         setView(destView);
       }
@@ -371,9 +367,11 @@ export default function App() {
 
   return (
     <div 
-      className="min-h-screen bg-slate-950 text-white font-sans overflow-hidden flex flex-col"
+      // FIX: Changed bg-slate-950 to bg-transparent
+      className="min-h-screen bg-transparent text-white font-sans overflow-hidden flex flex-col"
       style={{
-        backgroundImage: `linear-gradient(to bottom, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.95)), url("${BACKGROUND_IMAGE}")`,
+        // FIX: Changed gradient to neutral black fade instead of blue slate
+        backgroundImage: `linear-gradient(to bottom, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.9)), url("${BACKGROUND_IMAGE}")`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundAttachment: 'fixed'
@@ -393,7 +391,7 @@ export default function App() {
                 setShowInfo={setShowInfo}
                 savedPlayers={savedPlayers} 
                 APP_VERSION={APP_VERSION}
-                CUSTOM_LOGO_URL={React.useMemo(() => '/NilsPoisGolfInAppLogo.png', [])} 
+                CUSTOM_LOGO_URL={useMemo(() => '/NilsPoisGolfInAppLogo.png', [])} 
             />
         )}
         
