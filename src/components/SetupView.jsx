@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
-// FIX: Added 'Users' to the import list below
-import { Settings, AlertCircle, User, Users, Plus, CheckSquare, Square, UserCheck, X, BookOpen, Target, Activity, Swords, Gem, Save, Percent } from 'lucide-react';
+import { 
+    Settings, AlertCircle, User, Users, Plus, CheckSquare, Square, 
+    UserCheck, X, BookOpen, Target, Activity, Swords, Gem, Save, Percent 
+} from 'lucide-react';
+
+// FIX: Import PRESET_COURSES directly at the top
+import { PRESET_COURSES } from '../utils/constants';
 
 const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRating, pars, setPars, gameMode, setGameMode, setSi, si, playerName, setPlayerName, handicapIndex, setHandicapIndex, createGame, onCancel, savedPlayers, error, teamMode, setTeamMode, handicapMode, setHandicapMode, holesMode, setHolesMode }) => {
   const [selectedFriends, setSelectedFriends] = useState(new Set());
@@ -12,14 +17,15 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
   const [activeTab, setActiveTab] = useState('preset');
 
   const handlePresetChange = (e) => {
-    // Note: PRESET_COURSES is imported in App.jsx and passed down, or defined in constants. 
-    // If you encounter an error here, ensure PRESET_COURSES is imported from constants.
-    const { PRESET_COURSES } = require('../utils/constants'); 
-    
     const key = e.target.value;
+    // FIX: Access the imported constant directly
     if (key && PRESET_COURSES[key]) {
       const c = PRESET_COURSES[key];
-      setCourseName(c.name); setSlope(c.slope); setRating(c.rating); setPars(c.pars); if (c.si) setSi(c.si);
+      setCourseName(c.name); 
+      setSlope(c.slope); 
+      setRating(c.rating); 
+      setPars(c.pars); 
+      if (c.si) setSi(c.si);
     }
   };
 
@@ -113,36 +119,9 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                     {activeTab === 'preset' ? (
                         <select className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-slate-400 focus:outline-none focus:border-emerald-500" onChange={handlePresetChange} defaultValue="">
                             <option value="" disabled>Or select preset...</option>
-                            <option value="olton_white">Olton GC - White (Men)</option>
-                            <option value="olton_yellow">Olton GC - Yellow (Men)</option>
-                            <option value="olton_red">Olton GC - Red (Ladies)</option>
-                            <option value="fairhaven_blue">Fairhaven GC - Blue</option>
-                            <option value="fairhaven_white">Fairhaven GC - White</option>
-                            <option value="fairhaven_yellow">Fairhaven GC - Yellow</option>
-                            <option value="fairhaven_red">Fairhaven GC - Red (Ladies)</option>
-                            <option value="moorpark_high_white">Moor Park - High (White)</option>
-                            <option value="moorpark_high_yellow">Moor Park - High (Yellow)</option>
-                            <option value="moorpark_high_red">Moor Park - High (Red)</option>
-                            <option value="moorpark_west_white">Moor Park - West (White)</option>
-                            <option value="moorpark_west_yellow">Moor Park - West (Yellow)</option>
-                            <option value="moorpark_west_red">Moor Park - West (Red)</option>
-                            <option value="belfry_brabazon">The Belfry (Brabazon)</option>
-                            <option value="royal_birkdale">Royal Birkdale (Champ)</option>
-                            <option value="st_andrews_old">St Andrews (Old Course)</option>
-                            <option value="wentworth_west">Wentworth (West)</option>
-                            <option value="sunningdale_old">Sunningdale (Old)</option>
-                            <option value="valedolobo_ocean_white">Vale do Lobo Ocean (White)</option>
-                            <option value="valedolobo_ocean_yellow">Vale do Lobo Ocean (Yellow)</option>
-                            <option value="valedolobo_ocean_red">Vale do Lobo Ocean (Red)</option>
-                            <option value="ombria_white">Ombria - White</option>
-                            <option value="ombria_yellow">Ombria - Yellow</option>
-                            <option value="ombria_red">Ombria - Red (Ladies)</option>
-                            <option value="laranjal_white">QDL Laranjal - White</option>
-                            <option value="laranjal_gold">QDL Laranjal - Gold (Yellow)</option>
-                            <option value="laranjal_silver">QDL Laranjal - Silver (Red)</option>
-                            <option value="monterei_north_tournament">Monte Rei North - Tournament</option>
-                            <option value="monterei_north_championship">Monte Rei North - Championship</option>
-                            <option value="monterei_north_forward">Monte Rei North - Silver</option>
+                            {Object.entries(PRESET_COURSES).map(([key, course]) => (
+                                <option key={key} value={key}>{course.name}</option>
+                            ))}
                         </select>
                     ) : (
                         <div className="space-y-2">
