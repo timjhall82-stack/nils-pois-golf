@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Settings, AlertCircle, User, Plus, CheckSquare, Square, UserCheck, X, BookOpen, Target, Activity, Swords, Gem, Save, Percent } from 'lucide-react';
+// FIX: Added 'Users' to the import list below
+import { Settings, AlertCircle, User, Users, Plus, CheckSquare, Square, UserCheck, X, BookOpen, Target, Activity, Swords, Gem, Save, Percent } from 'lucide-react';
 
 const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRating, pars, setPars, gameMode, setGameMode, setSi, si, playerName, setPlayerName, handicapIndex, setHandicapIndex, createGame, onCancel, savedPlayers, error, teamMode, setTeamMode, handicapMode, setHandicapMode, holesMode, setHolesMode }) => {
   const [selectedFriends, setSelectedFriends] = useState(new Set());
@@ -12,20 +13,10 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
 
   const handlePresetChange = (e) => {
     // Note: PRESET_COURSES is imported in App.jsx and passed down, or defined in constants. 
-    // If not passed as prop, this component assumes logic handles it or we import constants here.
-    // For now, assuming you handle the logic or imports. 
-    // To ensure this works cleanly, add the import line below if not already present in your file.
-    // import { PRESET_COURSES } from '../utils/constants'; 
-    // OR pass `PRESET_COURSES` as a prop if preferred.
-    // Assuming simple string value passing for now:
+    // If you encounter an error here, ensure PRESET_COURSES is imported from constants.
+    const { PRESET_COURSES } = require('../utils/constants'); 
+    
     const key = e.target.value;
-    // We need to access PRESET_COURSES. If it's not in scope, import it.
-    // For this snippet, I will assume you add the import at the top of the file:
-    // import { PRESET_COURSES } from '../utils/constants';
-    
-    // Quick Fix: Dynamic import or prop is better, but here is the logic structure:
-    const { PRESET_COURSES } = require('../utils/constants'); // CommonJS fallback or ensure import at top
-    
     if (key && PRESET_COURSES[key]) {
       const c = PRESET_COURSES[key];
       setCourseName(c.name); setSlope(c.slope); setRating(c.rating); setPars(c.pars); if (c.si) setSi(c.si);
