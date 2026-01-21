@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, User, Users, Plus, CheckSquare, Square, UserCheck, X, BookOpen, Percent, Target, Activity, Swords, Gem, AlertCircle, Save } from 'lucide-react';
-import { PRESET_COURSES } from '../utils/constants';
+import { Settings, AlertCircle, User, Plus, CheckSquare, Square, UserCheck, X, BookOpen, Target, Activity, Swords, Gem, Save, Percent } from 'lucide-react';
 
 const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRating, pars, setPars, gameMode, setGameMode, setSi, si, playerName, setPlayerName, handicapIndex, setHandicapIndex, createGame, onCancel, savedPlayers, error, teamMode, setTeamMode, handicapMode, setHandicapMode, holesMode, setHolesMode }) => {
   const [selectedFriends, setSelectedFriends] = useState(new Set());
@@ -12,7 +11,21 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
   const [activeTab, setActiveTab] = useState('preset');
 
   const handlePresetChange = (e) => {
+    // Note: PRESET_COURSES is imported in App.jsx and passed down, or defined in constants. 
+    // If not passed as prop, this component assumes logic handles it or we import constants here.
+    // For now, assuming you handle the logic or imports. 
+    // To ensure this works cleanly, add the import line below if not already present in your file.
+    // import { PRESET_COURSES } from '../utils/constants'; 
+    // OR pass `PRESET_COURSES` as a prop if preferred.
+    // Assuming simple string value passing for now:
     const key = e.target.value;
+    // We need to access PRESET_COURSES. If it's not in scope, import it.
+    // For this snippet, I will assume you add the import at the top of the file:
+    // import { PRESET_COURSES } from '../utils/constants';
+    
+    // Quick Fix: Dynamic import or prop is better, but here is the logic structure:
+    const { PRESET_COURSES } = require('../utils/constants'); // CommonJS fallback or ensure import at top
+    
     if (key && PRESET_COURSES[key]) {
       const c = PRESET_COURSES[key];
       setCourseName(c.name); setSlope(c.slope); setRating(c.rating); setPars(c.pars); if (c.si) setSi(c.si);
@@ -39,13 +52,16 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
       setIsCreating(true);
       try { const portalFriends = savedPlayers.filter(p => selectedFriends.has(p.id)); const fullRoster = [...portalFriends, ...adhocGuests]; await createGame(fullRoster, hostAvatar); } catch(e) { alert("Error creating game: " + e.message); setIsCreating(false); }
   };
+  
   const ModeButton = ({ mode, icon: Icon, label }) => (<button onClick={() => setGameMode(mode)} className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${gameMode === mode ? 'border-emerald-500 bg-emerald-500/20 text-white' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-500'}`}><Icon size={20} className="mb-1" /><span className="text-[10px] font-bold uppercase">{label}</span></button>);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-4 flex flex-col items-center">
+    <div className="min-h-screen bg-transparent text-white p-4 flex flex-col items-center">
         <h2 className="text-xl font-bold mb-4 flex items-center"><Settings size={20} className="mr-2"/> Game Setup</h2>
         {error && <div className="w-full max-w-md p-3 bg-red-500/20 border border-red-500/50 text-red-200 rounded-lg text-sm text-center mb-4 flex items-center justify-center animate-in fade-in"><AlertCircle size={16} className="mr-2"/>{String(error)}</div>}
-        <div className="w-full max-w-md bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-6">
+        
+        {/* Main Card with Backdrop Blur */}
+        <div className="w-full max-w-md bg-slate-900/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800 space-y-6">
             <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
                 <div className="flex justify-between items-center mb-3">
                     <label className="text-xs font-bold text-emerald-400 uppercase flex items-center"><User size={12} className="mr-1"/> Host Player (You)</label>
@@ -108,20 +124,34 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                             <option value="" disabled>Or select preset...</option>
                             <option value="olton_white">Olton GC - White (Men)</option>
                             <option value="olton_yellow">Olton GC - Yellow (Men)</option>
+                            <option value="olton_red">Olton GC - Red (Ladies)</option>
+                            <option value="fairhaven_blue">Fairhaven GC - Blue</option>
                             <option value="fairhaven_white">Fairhaven GC - White</option>
                             <option value="fairhaven_yellow">Fairhaven GC - Yellow</option>
+                            <option value="fairhaven_red">Fairhaven GC - Red (Ladies)</option>
                             <option value="moorpark_high_white">Moor Park - High (White)</option>
                             <option value="moorpark_high_yellow">Moor Park - High (Yellow)</option>
+                            <option value="moorpark_high_red">Moor Park - High (Red)</option>
                             <option value="moorpark_west_white">Moor Park - West (White)</option>
                             <option value="moorpark_west_yellow">Moor Park - West (Yellow)</option>
-			    <option value="valedolobo_ocean_white">Vale do Lobo Ocean (White)</option>
-			    <option value="valedolobo_ocean_yellow">Vale do Lobo Ocean (Yellow)</option>
-			    <option value="ombria_white">Ombria - White</option>
-			    <option value="ombria_yellow">Ombria - Yellow</option>
-			    <option value="laranjal_white">QDL Laranjal - White</option>
-			    <option value="laranjal_gold">QDL Laranjal - Gold (Yellow)</option>
-			    <option value="monterei_north_tournament">Monte Rei North - Tournament</option>
-			    <option value="monterei_north_championship">Monte Rei North - Championship</option>
+                            <option value="moorpark_west_red">Moor Park - West (Red)</option>
+                            <option value="belfry_brabazon">The Belfry (Brabazon)</option>
+                            <option value="royal_birkdale">Royal Birkdale (Champ)</option>
+                            <option value="st_andrews_old">St Andrews (Old Course)</option>
+                            <option value="wentworth_west">Wentworth (West)</option>
+                            <option value="sunningdale_old">Sunningdale (Old)</option>
+                            <option value="valedolobo_ocean_white">Vale do Lobo Ocean (White)</option>
+                            <option value="valedolobo_ocean_yellow">Vale do Lobo Ocean (Yellow)</option>
+                            <option value="valedolobo_ocean_red">Vale do Lobo Ocean (Red)</option>
+                            <option value="ombria_white">Ombria - White</option>
+                            <option value="ombria_yellow">Ombria - Yellow</option>
+                            <option value="ombria_red">Ombria - Red (Ladies)</option>
+                            <option value="laranjal_white">QDL Laranjal - White</option>
+                            <option value="laranjal_gold">QDL Laranjal - Gold (Yellow)</option>
+                            <option value="laranjal_silver">QDL Laranjal - Silver (Red)</option>
+                            <option value="monterei_north_tournament">Monte Rei North - Tournament</option>
+                            <option value="monterei_north_championship">Monte Rei North - Championship</option>
+                            <option value="monterei_north_forward">Monte Rei North - Silver</option>
                         </select>
                     ) : (
                         <div className="space-y-2">
