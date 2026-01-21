@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react'; // Removed useMemo from here
 import { initializeApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -39,7 +39,8 @@ import {
 } from 'lucide-react';
 
 // --- IMPORTS FROM YOUR FILE STRUCTURE ---
-import { APP_VERSION, APP_ID, COLLECTION_NAME, BACKGROUND_IMAGE, DEFAULT_PARS, DEFAULT_SI } from './utils/constants';
+// FIX: Added CUSTOM_LOGO_URL to imports
+import { APP_VERSION, APP_ID, COLLECTION_NAME, BACKGROUND_IMAGE, DEFAULT_PARS, DEFAULT_SI, CUSTOM_LOGO_URL } from './utils/constants';
 
 // Views
 import LobbyView from './components/LobbyView';
@@ -223,6 +224,7 @@ export default function App() {
         if (docSnap.exists()) { 
             const s = docSnap.data();
             setGameSettings(s); 
+            // Only switch view if we are stuck in lobby/setup but a game is loaded
             if (view === 'lobby' || view === 'setup') setView('score'); 
         } 
         setLoading(false);
@@ -325,7 +327,14 @@ export default function App() {
   
   const leaveGame = () => { setShowExitModal(true); };
   const confirmLeave = () => { localStorage.removeItem('golf_game_id'); setGameId(''); setPlayers([]); setGameSettings(null); setView('lobby'); setJoinCodeInput(''); setShowExitModal(false); };
-  const loadHistoricalGame = (oldGameId) => { if(!oldGameId) return; setGameId(oldGameId); setShowHistory(false); setView('leaderboard'); };
+  
+  // FIX: Ensure History logic sets the view correctly without crashing hooks
+  const loadHistoricalGame = (oldGameId) => { 
+      if(!oldGameId) return; 
+      setGameId(oldGameId); 
+      setShowHistory(false); 
+      setView('leaderboard'); 
+  };
 
   const addGuestPlayer = async (avatarUrl = '') => {
       if (!newGuestName.trim()) return;
@@ -367,10 +376,8 @@ export default function App() {
 
   return (
     <div 
-      // FIX: Changed bg-slate-950 to bg-transparent
       className="min-h-screen bg-transparent text-white font-sans overflow-hidden flex flex-col"
       style={{
-        // FIX: Changed gradient to neutral black fade instead of blue slate
         backgroundImage: `linear-gradient(to bottom, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.9)), url("${BACKGROUND_IMAGE}")`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
@@ -391,7 +398,8 @@ export default function App() {
                 setShowInfo={setShowInfo}
                 savedPlayers={savedPlayers} 
                 APP_VERSION={APP_VERSION}
-                CUSTOM_LOGO_URL={useMemo(() => '/NilsPoisGolfInAppLogo.png', [])} 
+                // FIX: Pass direct string constant instead of using inline useMemo
+                CUSTOM_LOGO_URL={CUSTOM_LOGO_URL} 
             />
         )}
         
