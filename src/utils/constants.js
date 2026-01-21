@@ -1,5 +1,5 @@
 // UPDATE THIS LINE
-export const APP_VERSION = "v3.9.3 Jan 21st 2026, 09:57";
+export const APP_VERSION = "v3.9.3 (21 Jan 2026 14:45)";
 
 export const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
 export const APP_ID = "nils-pois-golf-v5"; 
@@ -141,83 +141,4 @@ export const PRESET_COURSES = {
     slope: 140,
     rating: 74.1,
     pars: [4, 4, 5, 4, 3, 5, 3, 5, 4, 5, 4, 4, 3, 4, 3, 5, 3, 5],
-    si:   [5, 13, 1, 7, 17, 9, 15, 11, 3, 10, 2, 6, 18, 8, 12, 4, 16, 14]
-  },
-  'valedolobo_ocean_yellow': {
-    name: "Vale do Lobo Ocean (Yellow)",
-    slope: 135,
-    rating: 71.5,
-    pars: [4, 4, 5, 4, 3, 5, 3, 5, 4, 5, 4, 4, 3, 4, 3, 5, 3, 5],
-    si:   [5, 13, 1, 7, 17, 9, 15, 11, 3, 10, 2, 6, 18, 8, 12, 4, 16, 14]
-  },
-  'valedolobo_ocean_red': {
-    name: "Vale do Lobo Ocean (Red - Ladies)",
-    slope: 129,
-    rating: 68.6,
-    pars: [4, 4, 5, 4, 3, 5, 3, 5, 4, 5, 4, 4, 3, 4, 3, 5, 3, 5],
-    si:   [5, 13, 1, 7, 17, 9, 15, 11, 3, 10, 2, 6, 18, 8, 12, 4, 16, 14]
-  },
-  'ombria_white': {
-    name: "Ombria (White)",
-    slope: 132,
-    rating: 71.0,
-    pars: [5, 5, 4, 3, 3, 5, 3, 4, 4, 4, 3, 5, 3, 4, 4, 5, 3, 4],
-    si:   [5, 3, 17, 13, 15, 7, 9, 11, 1, 4, 8, 2, 14, 16, 6, 10, 12, 18]
-  },
-  'ombria_yellow': {
-    name: "Ombria (Yellow)",
-    slope: 127,
-    rating: 68.6,
-    pars: [5, 5, 4, 3, 3, 5, 3, 4, 4, 4, 3, 5, 3, 4, 4, 5, 3, 4],
-    si:   [5, 3, 17, 13, 15, 7, 9, 11, 1, 4, 8, 2, 14, 16, 6, 10, 12, 18]
-  },
-  'ombria_red': {
-    name: "Ombria (Red - Ladies)",
-    slope: 125,
-    rating: 69.1,
-    pars: [5, 5, 4, 3, 3, 5, 3, 4, 4, 4, 3, 5, 3, 4, 4, 5, 3, 4],
-    si:   [5, 3, 17, 13, 15, 7, 9, 11, 1, 4, 8, 2, 14, 16, 6, 10, 12, 18]
-  },
-  'laranjal_white': {
-    name: "QDL Laranjal (White)",
-    slope: 136,
-    rating: 74.3,
-    pars: [4, 3, 4, 4, 4, 3, 5, 3, 5, 4, 4, 3, 5, 4, 5, 3, 4, 5],
-    si:   [15, 11, 5, 9, 3, 17, 1, 13, 7, 6, 18, 10, 16, 4, 8, 2, 14, 12]
-  },
-  'laranjal_gold': {
-    name: "QDL Laranjal (Gold/Yellow)",
-    slope: 130,
-    rating: 71.1,
-    pars: [4, 3, 4, 4, 4, 3, 5, 3, 5, 4, 4, 3, 5, 4, 5, 3, 4, 5],
-    si:   [15, 11, 5, 9, 3, 17, 1, 13, 7, 6, 18, 10, 16, 4, 8, 2, 14, 12]
-  },
-  'laranjal_silver': {
-    name: "QDL Laranjal (Silver/Red)",
-    slope: 128,
-    rating: 72.4,
-    pars: [4, 3, 4, 4, 4, 3, 5, 3, 5, 4, 4, 3, 5, 4, 5, 3, 4, 5],
-    si:   [15, 11, 5, 9, 3, 17, 1, 13, 7, 6, 18, 10, 16, 4, 8, 2, 14, 12]
-  },
-  'monterei_north_tournament': {
-    name: "Monte Rei North (Tournament/Black)",
-    slope: 147,
-    rating: 75.6,
-    pars: [4, 5, 4, 4, 3, 5, 3, 5, 3, 4, 3, 4, 4, 3, 4, 5, 4, 5],
-    si:   [10, 6, 2, 14, 16, 4, 8, 12, 18, 5, 11, 7, 9, 17, 1, 13, 3, 15]
-  },
-  'monterei_north_championship': {
-    name: "Monte Rei North (Champ/Gold)",
-    slope: 142,
-    rating: 72.9,
-    pars: [4, 5, 4, 4, 3, 5, 3, 5, 3, 4, 3, 4, 4, 3, 4, 5, 4, 5],
-    si:   [10, 6, 2, 14, 16, 4, 8, 12, 18, 5, 11, 7, 9, 17, 1, 13, 3, 15]
-  },
-  'monterei_north_forward': {
-    name: "Monte Rei North (Silver/Ladies)",
-    slope: 138,
-    rating: 71.3,
-    pars: [4, 5, 4, 4, 3, 5, 3, 5, 3, 4, 3, 4, 4, 3, 4, 5, 4, 5],
-    si:   [10, 6, 2, 14, 16, 4, 8, 12, 18, 5, 11, 7, 9, 17, 1, 13, 3, 15]
-  }
-};
+    si:   [5, 13, 1, 7, 17, 9, 15, 11, 3, 10

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'; // Removed useMemo from here
+import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -21,6 +21,7 @@ import {
   setDoc, 
   doc, 
   getDoc,
+  getDocs, // Added getDocs for the join check
   writeBatch,
   updateDoc
 } from 'firebase/firestore';
@@ -39,7 +40,6 @@ import {
 } from 'lucide-react';
 
 // --- IMPORTS FROM YOUR FILE STRUCTURE ---
-// FIX: Added CUSTOM_LOGO_URL to imports
 import { APP_VERSION, APP_ID, COLLECTION_NAME, BACKGROUND_IMAGE, DEFAULT_PARS, DEFAULT_SI, CUSTOM_LOGO_URL } from './utils/constants';
 
 // Views
@@ -105,6 +105,7 @@ export default function App() {
   const [gameId, setGameId] = useState('');
   const [playerName, setPlayerName] = useState('');
   const [handicapIndex, setHandicapIndex] = useState('');
+  const [currentAvatar, setCurrentAvatar] = useState(''); // Track chosen avatar
   const [savedPlayers, setSavedPlayers] = useState([]);
   const [syncStatus, setSyncStatus] = useState('saved'); 
   
@@ -245,6 +246,7 @@ export default function App() {
       
       await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, settingsId), { 
           courseName, slope, rating, pars, si, totalPar, gameMode, teamMode, handicapMode, holesMode,
+          hostUserId: user.uid, // <--- NEW: Save the Host ID
           createdAt: new Date().toISOString() 
       });
       await joinGameLogic(newCode, courseName, slope, rating, totalPar, hostAvatarUrl, holesMode, handicapMode);
@@ -280,30 +282,69 @@ export default function App() {
     if (!snap.exists()) { setError("Game code not found"); return; }
     const settings = snap.data();
     const mode = settings.handicapMode || (settings.useHandicapDiff ? 'diff' : 'full');
-    await joinGameLogic(code, settings.courseName, settings.slope, settings.rating, settings.totalPar, '', settings.holesMode, mode);
+    await joinGameLogic(code, settings.courseName, settings.slope, settings.rating, settings.totalPar, currentAvatar, settings.holesMode, mode);
   };
 
+  // SMART JOIN LOGIC: Checks for duplicate names before joining
   const joinGameLogic = async (code, cName, cSlope, cRating, cTotalPar, avatarUrl = '', hMode = '18', hcpMode = 'full') => {
     setLoading(true);
     setGameId(code);
+    
     localStorage.setItem('golf_game_id', code);
     localStorage.setItem('golf_player_name', playerName);
     localStorage.setItem('golf_player_hcp', handicapIndex);
+
     const ch = calculateCourseHandicap(handicapIndex, cSlope, cRating, cTotalPar, hMode, hcpMode);
-    const playerDocId = `${code}_${user.uid}`;
-    
-    await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, playerDocId), { 
-        gameId: code, 
-        userId: user.uid, 
-        playerName: playerName, 
-        handicapIndex: handicapIndex, 
-        courseHandicap: ch, 
-        avatarUrl: avatarUrl, 
-        type: 'player', 
-        lastActive: new Date().toISOString() 
-    }, { merge: true });
-    setView('score');
-    setLoading(false);
+
+    try {
+        // STEP 1: Check if this player name already exists in this game
+        const q = query(
+            collection(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME),
+            where('gameId', '==', code),
+            where('playerName', '==', playerName),
+            where('type', '==', 'player')
+        );
+
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+            // Player Exists -> Take over the existing slot
+            const existingDoc = querySnapshot.docs[0];
+            const existingData = existingDoc.data();
+            
+            const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, existingDoc.id);
+
+            await setDoc(docRef, {
+                userId: user.uid,
+                handicapIndex: handicapIndex,
+                courseHandicap: ch,
+                avatarUrl: avatarUrl || existingData.avatarUrl,
+                isGuest: false,
+                lastActive: new Date().toISOString()
+            }, { merge: true });
+
+        } else {
+            // New Player -> Create a brand new slot
+            const playerDocId = `${code}_${user.uid}`;
+            await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, playerDocId), { 
+                gameId: code, 
+                userId: user.uid, 
+                playerName: playerName, 
+                handicapIndex: handicapIndex, 
+                courseHandicap: ch, 
+                avatarUrl: avatarUrl, 
+                type: 'player', 
+                lastActive: new Date().toISOString() 
+            }, { merge: true });
+        }
+
+        setView('score');
+    } catch (err) {
+        console.error("Error joining game:", err);
+        setError("Could not join game. Please try again.");
+    } finally {
+        setLoading(false);
+    }
   };
 
   const updateScore = async (targetUserId, hole, strokes) => {
@@ -328,7 +369,6 @@ export default function App() {
   const leaveGame = () => { setShowExitModal(true); };
   const confirmLeave = () => { localStorage.removeItem('golf_game_id'); setGameId(''); setPlayers([]); setGameSettings(null); setView('lobby'); setJoinCodeInput(''); setShowExitModal(false); };
   
-  // FIX: Ensure History logic sets the view correctly without crashing hooks
   const loadHistoricalGame = (oldGameId) => { 
       if(!oldGameId) return; 
       setGameId(oldGameId); 
@@ -389,6 +429,8 @@ export default function App() {
                 courseName={courseName} setCourseName={setCourseName}
                 startSetup={() => setView('setup')}
                 playerName={playerName} setPlayerName={setPlayerName}
+                handicapIndex={handicapIndex} setHandicapIndex={setHandicapIndex}
+                currentAvatar={currentAvatar} setCurrentAvatar={setCurrentAvatar}
                 joinCodeInput={joinCodeInput} setJoinCodeInput={setJoinCodeInput}
                 handleJoinGame={handleJoinGame}
                 error={error} 
@@ -398,7 +440,6 @@ export default function App() {
                 setShowInfo={setShowInfo}
                 savedPlayers={savedPlayers} 
                 APP_VERSION={APP_VERSION}
-                // FIX: Pass direct string constant instead of using inline useMemo
                 CUSTOM_LOGO_URL={CUSTOM_LOGO_URL} 
             />
         )}
