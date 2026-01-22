@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
     Users, UserPlus, Shuffle, X, User, HelpCircle, ChevronUp, ChevronDown, 
-    History, Calendar, Activity, Contact, Camera, Edit, Trash2, Plus 
+    History, Calendar, Activity, Contact, Camera, Edit, Trash2, Plus, AlertTriangle 
 } from 'lucide-react';
 import { 
     collection, query, where, getDocs, doc, getDoc, addDoc, updateDoc, 
@@ -10,9 +10,10 @@ import {
 import { CUSTOM_LOGO_URL, APP_VERSION } from '../utils/constants';
 
 // --- TEE SHEET MODAL ---
-export const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestName, setNewGuestName, newGuestHcp, setNewGuestHcp, savedPlayers, updatePlayerGroup }) => {
+export const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestName, setNewGuestName, newGuestHcp, setNewGuestHcp, savedPlayers, updatePlayerGroup, teamMode }) => {
     // Prevent crash by copying array before sorting
     const sortedPlayers = players ? [...players].sort((a,b) => (a.teeGroup || 99) - (b.teeGroup || 99)) : [];
+    const isPairs = teamMode === 'pairs';
 
     return (
         <div className="fixed inset-0 bg-slate-950 z-[80] flex flex-col animate-in slide-in-from-bottom duration-300">
@@ -22,6 +23,19 @@ export const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestN
             </div>
             
             <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                {/* PAIRS MODE WARNING */}
+                {isPairs && (
+                    <div className="bg-yellow-500/10 border border-yellow-500/50 p-3 rounded-xl flex items-start gap-3">
+                        <AlertTriangle size={20} className="text-yellow-500 flex-shrink-0 mt-0.5" />
+                        <div>
+                            <h4 className="text-sm font-bold text-yellow-500">Pairs Format Active</h4>
+                            <p className="text-xs text-slate-400 mt-1">
+                                Players <strong>must</strong> be assigned to groups of 2 (e.g. Group 1, Group 2) for Better Ball scoring to calculate correctly.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-sm">
                     <h4 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center"><UserPlus size={14} className="mr-1"/> Add Guest Player</h4>
                     <div className="flex gap-2">
@@ -35,7 +49,12 @@ export const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestN
                     <div className="flex justify-between items-center">
                         <h4 className="text-xs font-bold text-slate-500 uppercase">Groups & Order</h4>
                         <div className="flex gap-2">
-                            <button onClick={() => randomize(2)} className="text-[10px] bg-slate-800 text-slate-300 px-2 py-1 rounded border border-slate-700 hover:text-white flex items-center"><Shuffle size={10} className="mr-1"/> 2s</button>
+                            <button 
+                                onClick={() => randomize(2)} 
+                                className={`text-[10px] px-2 py-1 rounded border flex items-center transition-colors ${isPairs ? 'bg-yellow-600 border-yellow-500 text-white shadow-lg animate-pulse' : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white'}`}
+                            >
+                                <Shuffle size={10} className="mr-1"/> 2s {isPairs && '(Required)'}
+                            </button>
                             <button onClick={() => randomize(3)} className="text-[10px] bg-slate-800 text-slate-300 px-2 py-1 rounded border border-slate-700 hover:text-white flex items-center"><Shuffle size={10} className="mr-1"/> 3s</button>
                             <button onClick={() => randomize(4)} className="text-[10px] bg-slate-800 text-slate-300 px-2 py-1 rounded border border-slate-700 hover:text-white flex items-center"><Shuffle size={10} className="mr-1"/> 4s</button>
                         </div>
@@ -56,7 +75,7 @@ export const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestN
                                 <div className="flex items-center gap-2">
                                     <span className="text-[10px] text-slate-500 font-bold uppercase mr-1">Group</span>
                                     <select 
-                                        className="bg-slate-800 text-white text-xs border border-slate-600 rounded p-1 outline-none focus:border-emerald-500"
+                                        className={`text-white text-xs border rounded p-1 outline-none focus:border-emerald-500 ${isPairs && !p.teeGroup ? 'bg-red-900/30 border-red-500' : 'bg-slate-800 border-slate-600'}`}
                                         value={p.teeGroup || ""}
                                         onChange={(e) => updatePlayerGroup(p.id, parseInt(e.target.value))}
                                     >
@@ -73,7 +92,7 @@ export const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestN
     );
 };
 
-// --- INFO PAGE ---
+// ... InfoPage (Keep existing code) ...
 export const InfoPage = ({ onClose }) => {
     const [openSection, setOpenSection] = useState(null);
     const toggle = (sec) => setOpenSection(openSection === sec ? null : sec);
@@ -130,7 +149,7 @@ export const InfoPage = ({ onClose }) => {
     );
 };
 
-// --- HISTORY VIEW (With Delete) ---
+// ... HistoryView (Keep existing code) ...
 export const HistoryView = ({ userId, onClose, onLoadGame, db, APP_ID, COLLECTION_NAME }) => {
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -171,26 +190,14 @@ export const HistoryView = ({ userId, onClose, onLoadGame, db, APP_ID, COLLECTIO
 
         try {
             const batch = writeBatch(db);
-
-            // 1. Delete the Game Settings
             const settingsRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, `SETTINGS_${gameId}`);
             batch.delete(settingsRef);
-
-            // 2. Find and delete all players associated with this game
             const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME), where('gameId', '==', gameId));
             const playerSnaps = await getDocs(q);
-            playerSnaps.forEach(doc => {
-                batch.delete(doc.ref);
-            });
-
+            playerSnaps.forEach(doc => { batch.delete(doc.ref); });
             await batch.commit();
-
-            // 3. Remove from local state immediately
             setHistory(prev => prev.filter(g => g.id !== gameId));
-        } catch (err) {
-            console.error("Error deleting game:", err);
-            alert("Could not delete game. Check console.");
-        }
+        } catch (err) { console.error("Error deleting game:", err); alert("Could not delete game. Check console."); }
     };
 
     return (
@@ -200,35 +207,13 @@ export const HistoryView = ({ userId, onClose, onLoadGame, db, APP_ID, COLLECTIO
                 <button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X size={20} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {loading ? (
-                    <div className="flex justify-center pt-10 text-slate-500"><Activity className="animate-spin" /></div>
-                ) : history.length === 0 ? (
-                    <div className="text-center text-slate-500 py-10">No games played yet.</div>
-                ) : (
+                {loading ? <div className="flex justify-center pt-10 text-slate-500"><Activity className="animate-spin" /></div> : history.length === 0 ? <div className="text-center text-slate-500 py-10">No games played yet.</div> : (
                     history.map(game => (
                         <div key={game.id} className="w-full bg-slate-900 border border-slate-800 rounded-xl flex overflow-hidden group">
-                            {/* Main clickable area to load game */}
-                            <button 
-                                onClick={() => onLoadGame(game.id)} 
-                                className="flex-1 p-4 text-left hover:bg-slate-800 transition"
-                            >
-                                <div>
-                                    <div className="font-bold text-white text-lg">{game.courseName}</div>
-                                    <div className="text-xs text-slate-500 flex items-center mt-1">
-                                        <Calendar size={12} className="mr-1"/> 
-                                        {new Date(game.date).toLocaleDateString()}
-                                    </div>
-                                </div>
+                            <button onClick={() => onLoadGame(game.id)} className="flex-1 p-4 text-left hover:bg-slate-800 transition">
+                                <div><div className="font-bold text-white text-lg">{game.courseName}</div><div className="text-xs text-slate-500 flex items-center mt-1"><Calendar size={12} className="mr-1"/> {new Date(game.date).toLocaleDateString()}</div></div>
                             </button>
-                            
-                            {/* Delete Button */}
-                            <button 
-                                onClick={(e) => handleDelete(game.id, e)} 
-                                className="px-4 bg-slate-900 hover:bg-red-900/20 text-slate-500 hover:text-red-500 border-l border-slate-800 transition flex items-center justify-center"
-                                title="Delete Round"
-                            >
-                                <Trash2 size={18} />
-                            </button>
+                            <button onClick={(e) => handleDelete(game.id, e)} className="px-4 bg-slate-900 hover:bg-red-900/20 text-slate-500 hover:text-red-500 border-l border-slate-800 transition flex items-center justify-center" title="Delete Round"><Trash2 size={18} /></button>
                         </div>
                     ))
                 )}
@@ -237,7 +222,7 @@ export const HistoryView = ({ userId, onClose, onLoadGame, db, APP_ID, COLLECTIO
     );
 };
 
-// --- PLAYER PORTAL ---
+// ... PlayerPortal (Keep existing code) ...
 export const PlayerPortal = ({ onClose, userId, savedPlayers, db, APP_ID }) => {
     const [name, setName] = useState('');
     const [hcp, setHcp] = useState('');
@@ -290,9 +275,7 @@ export const PlayerPortal = ({ onClose, userId, savedPlayers, db, APP_ID }) => {
 
     const handleEdit = (player) => { setName(player.name); setHcp(player.handicap); setImgUrl(player.avatarUrl || ''); setEditingId(player.id); };
     const handleCancelEdit = () => { setName(''); setHcp(''); setImgUrl(''); setEditingId(null); };
-    const handleDelete = async (id) => {
-        if (confirm("Remove player from portal?")) { try { await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', userId, 'saved_players', id)); } catch (err) { alert("Error deleting: " + err.message); } }
-    };
+    const handleDelete = async (id) => { if (confirm("Remove player from portal?")) { try { await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', userId, 'saved_players', id)); } catch (err) { alert("Error deleting: " + err.message); } } };
 
     return (
         <div className="fixed inset-0 bg-black/90 z-[70] flex flex-col p-4 animate-in fade-in duration-200">

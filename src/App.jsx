@@ -541,6 +541,8 @@ export default function App() {
             <InfoPage onClose={() => setShowInfo(false)} />
         )}
 
+        // ... inside the return statement of App()
+
         {showTeeSheet && (
             <TeeSheetModal 
                 onClose={() => setShowTeeSheet(false)} 
@@ -552,7 +554,9 @@ export default function App() {
                 newGuestHcp={newGuestHcp} 
                 setNewGuestHcp={setNewGuestHcp} 
                 savedPlayers={savedPlayers} 
-                updatePlayerGroup={updatePlayerGroup} 
+                updatePlayerGroup={updatePlayerGroup}
+                // ADD THIS LINE BELOW:
+                teamMode={gameSettings?.teamMode || 'singles'} 
             />
         )}
 

@@ -1,4 +1,4 @@
-export const APP_VERSION = "v3.9.3 (21 Jan 2026 14:45)";
+export const APP_VERSION = "v3.9.4 (22 Jan 2026 06:30)";
 
 export const CUSTOM_LOGO_URL = "/NilsPoisGolfInAppLogo.png"; 
 export const APP_ID = "nils-pois-golf-v5"; 
