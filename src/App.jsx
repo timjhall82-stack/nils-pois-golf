@@ -1,61 +1,20 @@
+// ... (Top imports remain the same) ...
+// Ensure you have these imports at the top
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
-import { 
-  getAuth, 
-  signInAnonymously, 
-  onAuthStateChanged,
-  signInWithCustomToken,
-  GoogleAuthProvider,
-  signInWithPopup,
-  linkWithPopup,
-  signOut,
-  setPersistence,
-  browserLocalPersistence
-} from 'firebase/auth';
-import { 
-  getFirestore, 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  setDoc, 
-  doc, 
-  getDoc,
-  getDocs,
-  writeBatch,
-  updateDoc
-} from 'firebase/firestore';
-import { 
-  MapPin, 
-  Share2, 
-  Activity, 
-  Trophy, 
-  TableProperties, 
-  Users, 
-  LogOut, 
-  Check, 
-  Loader2, 
-  CloudOff,
-  X,
-  Settings // FIX: Added Settings icon
-} from 'lucide-react';
-
-// --- IMPORTS ---
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, linkWithPopup, signOut, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { getFirestore, collection, query, where, onSnapshot, setDoc, doc, getDoc, getDocs, writeBatch, updateDoc } from 'firebase/firestore';
+import { MapPin, Share2, Activity, Trophy, TableProperties, Users, LogOut, Check, Loader2, CloudOff, X, Settings } from 'lucide-react';
 import { APP_VERSION, APP_ID, COLLECTION_NAME, BACKGROUND_IMAGE, DEFAULT_PARS, DEFAULT_SI, CUSTOM_LOGO_URL } from './utils/constants';
-
-// Views
 import LobbyView from './components/LobbyView';
 import SetupView from './components/SetupView';
 import ScoreView from './components/ScoreView';
 import LeaderboardView from './components/LeaderboardView';
 import ScorecardView from './components/ScorecardView';
-// FIX: Import the new settings view
 import GameSettingsView from './components/GameSettingsView';
-
-// Modals
 import { TeeSheetModal, InfoPage, HistoryView, PlayerPortal } from './components/Modals';
 
-// --- Firebase Initialization ---
+// ... Firebase Config (Keep existing) ...
 const firebaseConfig = {
   apiKey: "AIzaSyCllkJmbTVFmCIzkyIHXIO24FKlJ9i4VQg",
   authDomain: "nilspoisgolf.firebaseapp.com",
@@ -69,7 +28,8 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// --- Helper Functions ---
+// --- HELPER FUNCTIONS ---
+
 const calculateCourseHandicap = (index, slopeVal, ratingVal, parVal, holesMode = '18', handicapMode = 'full') => {
     if (!index || index === '') return 0;
     let idx = parseFloat(index);
@@ -77,13 +37,28 @@ const calculateCourseHandicap = (index, slopeVal, ratingVal, parVal, holesMode =
     const rtg = parseFloat(ratingVal) || 72;
     const pr = parseInt(parVal) || 72;
     
+    // WHS Formula
     let rawCh = idx * (slp / 113) + (rtg - pr);
-    if (handicapMode === '95') { rawCh = rawCh * 0.95; }
+    
+    // Apply Allowance
+    if (handicapMode === '95') {
+        rawCh = rawCh * 0.95;
+    } else if (handicapMode === '90') { // NEW: 90% Option
+        rawCh = rawCh * 0.90;
+    }
 
     let ch = Math.round(rawCh);
-    if (holesMode === 'front9' || holesMode === 'back9') { return Math.round(ch / 2); }
+
+    // 9-Hole Adjustment
+    if (holesMode === 'front9' || holesMode === 'back9') {
+        return Math.round(ch / 2);
+    }
     return ch;
 };
+
+// ... Rest of App.jsx (Keep existing code from previous step, ensuring the updateGameSettings handles the '90' string too) ...
+// Since I only changed the calculateCourseHandicap helper, ensure you paste that updated helper into your App.jsx file.
+// The rest of App.jsx logic I sent previously is still valid.
 
 const SyncStatus = ({ status }) => {
     if (status === 'saving') return <div className="flex items-center text-yellow-500 text-[10px] font-medium bg-slate-800 px-2 py-1 rounded-full border border-slate-700"><Loader2 size={12} className="animate-spin mr-1" /> Saving...</div>;
@@ -91,9 +66,15 @@ const SyncStatus = ({ status }) => {
     return <div className="flex items-center text-slate-500 text-[10px] font-medium bg-slate-800 px-2 py-1 rounded-full border border-slate-700 transition-all duration-500"><Check size={12} className="mr-1 text-emerald-500" /> Saved</div>;
 };
 
-// --- Main App Component ---
-
 export default function App() {
+  // ... (Paste the FULL App component content I provided in the previous step) ...
+  // Be sure to use the new calculateCourseHandicap function defined above.
+  
+  // TO SAVE SPACE, I am assuming you have the full App.jsx content. 
+  // If you need the FULL App.jsx again with this one change, I can provide it, 
+  // but it is identical to the previous step's App.jsx except for the helper function at the top.
+  
+  // Here is the App component structure for clarity on where to verify:
   const [user, setUser] = useState(null);
   const [gameId, setGameId] = useState('');
   const [playerName, setPlayerName] = useState('');
@@ -101,28 +82,20 @@ export default function App() {
   const [currentAvatar, setCurrentAvatar] = useState(''); 
   const [savedPlayers, setSavedPlayers] = useState([]);
   const [syncStatus, setSyncStatus] = useState('saved'); 
-  
   const [players, setPlayers] = useState([]);
   const [gameSettings, setGameSettings] = useState(null);
-  
   const [view, setView] = useState('lobby'); 
   const [currentHole, setCurrentHole] = useState(1);
   const [loading, setLoading] = useState(true);
   const [joinCodeInput, setJoinCodeInput] = useState('');
   const [error, setError] = useState('');
-  
-  // Modals
   const [showExitModal, setShowExitModal] = useState(false);
   const [showTeeSheet, setShowTeeSheet] = useState(false);
   const [showPortal, setShowPortal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showInfo, setShowInfo] = useState(false); 
-  
-  // Tee Sheet Guest Input
   const [newGuestName, setNewGuestName] = useState('');
   const [newGuestHcp, setNewGuestHcp] = useState('');
-  
-  // Setup State
   const [courseName, setCourseName] = useState('');
   const [slope, setSlope] = useState('113');
   const [rating, setRating] = useState('72.0');
@@ -132,14 +105,19 @@ export default function App() {
   const [teamMode, setTeamMode] = useState('singles');
   const [handicapMode, setHandicapMode] = useState('full');
   const [holesMode, setHolesMode] = useState('18');
-  
   const activePars = gameSettings?.pars || DEFAULT_PARS;
   const activeSi = gameSettings?.si || DEFAULT_SI;
   const activeGameMode = gameSettings?.gameMode || 'stroke';
   const leaderboardData = players; 
-
-  // Back Button Logic
   const isBackNav = useRef(false);
+
+  // ... (Effects and Functions: isBackNav, Auth, Data Loading, createGame, handleJoinGame, joinGameLogic, updateGameSettings, etc.) ...
+  // Ensure 'updateGameSettings' uses the updated calculateCourseHandicap
+  
+  // ... (The rest of the App component logic) ...
+
+  // To be safe, I will paste the full App.jsx logic again to ensure no broken brackets.
+  // See below.
   useEffect(() => {
     if (!window.history.state) { window.history.replaceState({ view: 'lobby' }, ''); }
     const onPopState = (event) => {
@@ -161,7 +139,6 @@ export default function App() {
     if (window.history.state?.view !== view) { window.history.pushState({ view }, ''); }
   }, [view]);
 
-  // Auth & Data
   useEffect(() => {
     const initAuth = async () => {
       try { await setPersistence(auth, browserLocalPersistence); if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } } catch (err) { console.error("Auth error", err); setError("Failed to authenticate"); }
@@ -210,7 +187,6 @@ export default function App() {
     return () => { unsubSettings(); unsubPlayers(); };
   }, [user, gameId]);
 
-  // Actions
   const createGame = async (friendsToAdd = [], hostAvatarUrl = '') => {
       if (!playerName) { throw new Error("Host name required"); }
       const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -259,8 +235,6 @@ export default function App() {
     localStorage.setItem('golf_player_hcp', handicapIndex);
     const ch = calculateCourseHandicap(handicapIndex, cSlope, cRating, cTotalPar, hMode, hcpMode);
     const playerDocId = `${code}_${user.uid}`;
-    
-    // Check for duplicate
     try {
         const q = query(
             collection(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME),
@@ -287,38 +261,24 @@ export default function App() {
     } catch (err) { console.error("Error joining:", err); setError("Join failed."); } finally { setLoading(false); }
   };
 
-  // NEW: Update Settings & Recalculate Handicaps
   const updateGameSettings = async (newSettings) => {
     setSyncStatus('saving');
     try {
         const batch = writeBatch(db);
-        
-        // 1. Update Settings Doc
         const settingsRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, `SETTINGS_${gameId}`);
         batch.update(settingsRef, newSettings);
-
-        // 2. Recalculate Everyone's CH
         players.forEach(p => {
             const newCH = calculateCourseHandicap(
-                p.handicapIndex, 
-                newSettings.slope, 
-                newSettings.rating, 
-                newSettings.totalPar, 
-                newSettings.holesMode, 
+                p.handicapIndex, newSettings.slope, newSettings.rating, newSettings.totalPar, newSettings.holesMode, 
                 newSettings.handicapMode || (newSettings.useHandicapDiff ? 'diff' : 'full')
             );
             const pRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, p.id);
             batch.update(pRef, { courseHandicap: newCH });
         });
-
         await batch.commit();
         setSyncStatus('saved');
-        setView('score'); // Return to game
-    } catch(e) { 
-        console.error("Error updating settings:", e); 
-        setSyncStatus('error'); 
-        alert("Failed to save settings.");
-    }
+        setView('score');
+    } catch(e) { console.error("Error updating settings:", e); setSyncStatus('error'); alert("Failed to save settings."); }
   };
 
   const updateScore = async (targetUserId, hole, strokes) => {
@@ -410,7 +370,6 @@ export default function App() {
             />
         )}
 
-        {/* FIX: Handle 'settings' view */}
         {(view === 'score' || view === 'leaderboard' || view === 'card' || view === 'settings') && (
             <>
                 {view !== 'settings' && (
@@ -424,7 +383,6 @@ export default function App() {
                     {view === 'score' && <ScoreView currentHole={currentHole} setCurrentHole={setCurrentHole} currentHoleScore={0} updateScore={updateScore} activePars={activePars} activeSi={activeSi} players={players} user={user} gameSettings={gameSettings} />}
                     {view === 'leaderboard' && <LeaderboardView leaderboardData={leaderboardData} user={user} activeGameMode={activeGameMode} teamMode={gameSettings?.teamMode || 'singles'} gameSettings={gameSettings} />}
                     {view === 'card' && <ScorecardView players={players} activePars={activePars} activeSi={activeSi} holesMode={gameSettings?.holesMode || '18'} gameMode={activeGameMode} />}
-                    {/* FIX: Add Settings View */}
                     {view === 'settings' && <GameSettingsView gameSettings={gameSettings} onUpdate={updateGameSettings} onCancel={() => setView('score')} />}
                     
                     {view !== 'settings' && (
@@ -437,7 +395,6 @@ export default function App() {
                         <button onClick={() => setView('score')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${view === 'score' ? 'text-emerald-500' : 'text-slate-600'}`}><Activity size={20} /><span className="text-[10px] font-bold uppercase">Score</span></button>
                         <button onClick={() => setView('leaderboard')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${view === 'leaderboard' ? 'text-blue-500' : 'text-slate-600'}`}><Trophy size={20} /><span className="text-[10px] font-bold uppercase">Leaderboard</span></button>
                         <button onClick={() => setView('card')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${view === 'card' ? 'text-purple-500' : 'text-slate-600'}`}><TableProperties size={20} /><span className="text-[10px] font-bold uppercase">Card</span></button>
-                        {/* FIX: Add Settings Tab */}
                         <button onClick={() => setView('settings')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${view === 'settings' ? 'text-white' : 'text-slate-600'}`}><Settings size={20} /><span className="text-[10px] font-bold uppercase">Setup</span></button>
                     </div>
                 </nav>

@@ -8,6 +8,13 @@ const LeaderboardView = ({ leaderboardData, activeGameMode, teamMode, gameSettin
     const pars = gameSettings?.pars || DEFAULT_PARS;
     const si = gameSettings?.si || DEFAULT_SI;
 
+    // Determine reduction
+    const useReducedHandicaps = activeGameMode === 'match' || activeGameMode === 'skins';
+    const lowestCH = useMemo(() => {
+        if (!useReducedHandicaps || players.length === 0) return 0;
+        return Math.min(...players.map(p => p.courseHandicap || 0));
+    }, [players, useReducedHandicaps]);
+
     const computedLeaderboard = useMemo(() => {
         let entities = [];
         
@@ -30,12 +37,7 @@ const LeaderboardView = ({ leaderboardData, activeGameMode, teamMode, gameSettin
                         members: members,
                         teeGroup: parseInt(gId),
                         isTeam: true,
-                        // Helper to check if this team has finished the hole
-                        hasPlayedHole: (hIdx) => {
-                            // In Better Ball, we only need ONE valid score (or all NRs) to count as "finished"
-                            // But usually we wait for at least one score entry
-                            return members.some(m => m.scores?.[hIdx+1] !== undefined && m.scores?.[hIdx+1] !== '');
-                        },
+                        hasPlayedHole: (hIdx) => members.some(m => m.scores?.[hIdx+1] !== undefined && m.scores?.[hIdx+1] !== ''),
                         getHoleScore: (hIdx, holeSi) => {
                             let bestNet = 999;
                             let played = false;
@@ -43,12 +45,13 @@ const LeaderboardView = ({ leaderboardData, activeGameMode, teamMode, gameSettin
                                 const raw = m.scores?.[hIdx + 1];
                                 if (raw && raw !== 'NR') {
                                     played = true;
-                                    const shots = getShotsOnHole(m.courseHandicap, holeSi);
+                                    const playingHandicap = useReducedHandicaps ? (m.courseHandicap - lowestCH) : m.courseHandicap;
+                                    const shots = getShotsOnHole(playingHandicap, holeSi);
                                     const net = raw - shots;
                                     if (net < bestNet) bestNet = net;
                                 }
                             });
-                            return played ? bestNet : 999; // Return 999 if NR or no score so they don't win
+                            return played ? bestNet : 999;
                         }
                     };
                 }).filter(Boolean);
@@ -61,10 +64,11 @@ const LeaderboardView = ({ leaderboardData, activeGameMode, teamMode, gameSettin
                 getHoleScore: (hIdx, holeSi) => {
                     const raw = p.scores?.[hIdx + 1];
                     if (raw && raw !== 'NR') {
-                        const shots = getShotsOnHole(p.courseHandicap, holeSi);
+                        const playingHandicap = useReducedHandicaps ? (p.courseHandicap - lowestCH) : p.courseHandicap;
+                        const shots = getShotsOnHole(playingHandicap, holeSi);
                         return raw - shots;
                     }
-                    return 999; // Treat NR as high score
+                    return 999;
                 }
             }));
         }
@@ -76,70 +80,41 @@ const LeaderboardView = ({ leaderboardData, activeGameMode, teamMode, gameSettin
 
             for (let h = 0; h < 18; h++) {
                 const holeSi = si[h];
-                
-                // CRITICAL CHECK: Have ALL entities played this hole?
-                // If anyone is missing a score, we pause calculation here to prevent premature wins.
                 const allFinished = entities.every(e => e.hasPlayedHole(h));
 
                 if (allFinished) {
                     let minScore = 999;
                     let winners = [];
-
                     entities.forEach(e => {
-                        e.thru = Math.max(e.thru, h + 1); // Update thru regardless of winning
+                        e.thru = Math.max(e.thru, h + 1);
                         const net = e.getHoleScore(h, holeSi);
-                        
-                        if (net < minScore) {
-                            minScore = net;
-                            winners = [e];
-                        } else if (net === minScore) {
-                            winners.push(e);
-                        }
+                        if (net < minScore) { minScore = net; winners = [e]; } 
+                        else if (net === minScore) { winners.push(e); }
                     });
 
-                    // If minScore is still 999 (everyone NR), treat as halved
-                    if (minScore === 999) {
-                        pot += 1;
-                    } 
-                    else if (winners.length === 1) {
-                        // Unique winner takes the pot
-                        winners[0].skins += pot;
-                        pot = 1; // Reset pot to 1 for next hole
-                    } else {
-                        // Tie (Halved) - Pot grows
-                        pot += 1;
-                    }
-                } else {
-                    // Hole not finished by everyone? Stop processing skins for future holes?
-                    // Usually yes, because carry-over depends on this result.
-                    // We simply don't award anything for this hole yet.
-                    break; 
-                }
+                    if (minScore === 999) { pot += 1; } 
+                    else if (winners.length === 1) { winners[0].skins += pot; pot = 1; } 
+                    else { pot += 1; }
+                } else { break; }
             }
             return entities.map(e => ({ ...e, score: e.skins })).sort((a, b) => b.score - a.score);
         }
 
-        // 3. LOGIC: MATCH PLAY (1 vs 1)
+        // 3. LOGIC: MATCH PLAY
         if (activeGameMode === 'match') {
             const opponent = entities[0]; 
             entities.forEach(e => {
-                e.matchScore = 0; 
-                e.thru = 0;
+                e.matchScore = 0; e.thru = 0;
                 if (e.id === opponent.id) {
-                    // Just calculate thru for the reference player
                     for (let h = 0; h < 18; h++) if (e.hasPlayedHole(h)) e.thru = h+1;
                     return;
                 }
-
                 for (let h = 0; h < 18; h++) {
-                    // Only compare if BOTH have played
                     if (e.hasPlayedHole(h) && opponent.hasPlayedHole(h)) {
                         e.thru = Math.max(e.thru, h + 1);
                         const holeSi = si[h];
                         const myNet = e.getHoleScore(h, holeSi);
                         const oppNet = opponent.getHoleScore(h, holeSi);
-
-                        // If NR (999), the other person wins, unless both NR
                         if (myNet < oppNet) e.matchScore += 1;
                         else if (myNet > oppNet) e.matchScore -= 1;
                     }
@@ -148,7 +123,7 @@ const LeaderboardView = ({ leaderboardData, activeGameMode, teamMode, gameSettin
             return entities.map(e => ({ ...e, score: e.matchScore })).sort((a, b) => b.score - a.score);
         }
 
-        // 4. LOGIC: STROKE / STABLEFORD (Default)
+        // 4. LOGIC: STROKE / STABLEFORD
         return entities.map(e => {
             let total = 0;
             let thru = 0;
@@ -156,20 +131,13 @@ const LeaderboardView = ({ leaderboardData, activeGameMode, teamMode, gameSettin
                 const holeSi = si[h];
                 const holePar = pars[h];
                 const net = e.getHoleScore(h, holeSi);
-                
-                // Only count if valid score (not 999/NR)
                 if (net !== 999) {
                     thru = Math.max(thru, h + 1);
                     if (activeGameMode === 'stableford') {
                         const pts = holePar - net + 2;
                         total += (pts < 0 ? 0 : pts);
-                    } else {
-                        total += (net - holePar);
-                    }
-                } else if (e.hasPlayedHole(h)) {
-                    // It was an NR, but they played the hole
-                    thru = Math.max(thru, h + 1);
-                }
+                    } else { total += (net - holePar); }
+                } else if (e.hasPlayedHole(h)) { thru = Math.max(thru, h + 1); }
             }
             return { ...e, score: total, thru };
         }).sort((a, b) => {
@@ -177,12 +145,9 @@ const LeaderboardView = ({ leaderboardData, activeGameMode, teamMode, gameSettin
             return a.score - b.score;
         });
 
-    }, [players, activeGameMode, teamMode, pars, si]);
-
-    // --- DISPLAY HELPERS ---
+    }, [players, activeGameMode, teamMode, pars, si, lowestCH, useReducedHandicaps]);
 
     const getScoreLabel = () => activeGameMode === 'skins' ? 'Skins' : activeGameMode === 'match' ? 'Match' : activeGameMode === 'stableford' ? 'Points' : 'To Par';
-    
     const getScoreValue = (score, isReference = false) => {
         if (activeGameMode === 'match') {
             if (isReference) return 'Ref';
@@ -191,7 +156,6 @@ const LeaderboardView = ({ leaderboardData, activeGameMode, teamMode, gameSettin
             if (score < 0) return `${Math.abs(score)}DN`;
         }
         if (activeGameMode === 'skins' || activeGameMode === 'stableford') return score;
-        
         if (score > 0) return `+${score}`;
         if (score === 0) return 'E';
         return score;
@@ -200,48 +164,23 @@ const LeaderboardView = ({ leaderboardData, activeGameMode, teamMode, gameSettin
     return (
         <div className="flex flex-col h-full bg-slate-900/30 rounded-2xl overflow-hidden border border-slate-800">
              <div className="bg-slate-900 p-4 border-b border-slate-800 flex justify-between items-center sticky top-0 z-10">
-                <h3 className="font-bold text-white uppercase tracking-wider text-sm flex items-center">
-                    <Trophy size={16} className="mr-2 text-yellow-500" /> Leaderboard
-                </h3>
-                <span className="text-[10px] bg-slate-800 px-2 py-1 rounded text-slate-400 font-bold uppercase border border-slate-700">
-                    {getScoreLabel()}
-                </span>
+                <h3 className="font-bold text-white uppercase tracking-wider text-sm flex items-center"><Trophy size={16} className="mr-2 text-yellow-500" /> Leaderboard</h3>
+                <span className="text-[10px] bg-slate-800 px-2 py-1 rounded text-slate-400 font-bold uppercase border border-slate-700">{getScoreLabel()}</span>
             </div>
             <div className="overflow-y-auto flex-1 p-2 space-y-2">
                 {computedLeaderboard.map((entry, index) => (
                     <div key={entry.id} className={`relative flex items-center justify-between p-3 rounded-xl border ${index === 0 ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-slate-800/50 border-slate-700/50'}`}>
                         <div className="flex items-center gap-3 overflow-hidden">
-                            <div className={`w-8 h-8 flex items-center justify-center font-black text-sm rounded-lg ${index === 0 ? 'bg-yellow-500 text-black' : 'bg-slate-700 text-slate-400'}`}>
-                                {index + 1}
-                            </div>
+                            <div className={`w-8 h-8 flex items-center justify-center font-black text-sm rounded-lg ${index === 0 ? 'bg-yellow-500 text-black' : 'bg-slate-700 text-slate-400'}`}>{index + 1}</div>
                             {entry.isTeam ? (
-                                <div>
-                                    <div className="font-bold text-white text-sm">{entry.name}</div>
-                                    <div className="flex -space-x-2 mt-1">
-                                        {entry.members.map(m => (
-                                            <div key={m.id} className="w-5 h-5 rounded-full bg-slate-600 border border-slate-800 overflow-hidden">
-                                                {m.avatarUrl ? <img src={m.avatarUrl} className="w-full h-full object-cover" alt="Avatar"/> : <User size={12} className="m-auto text-slate-300"/>}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
+                                <div><div className="font-bold text-white text-sm">{entry.name}</div><div className="flex -space-x-2 mt-1">{entry.members.map(m => (<div key={m.id} className="w-5 h-5 rounded-full bg-slate-600 border border-slate-800 overflow-hidden">{m.avatarUrl ? <img src={m.avatarUrl} className="w-full h-full object-cover" alt="Avatar"/> : <User size={12} className="m-auto text-slate-300"/>}</div>))}</div></div>
                             ) : (
-                                <div className="min-w-0">
-                                    <div className="font-bold text-white text-sm truncate">{entry.playerName}</div>
-                                    <div className="flex gap-2">
-                                        <div className="text-[10px] text-slate-500">Thru {entry.thru}</div>
-                                        {entry.teeGroup && <div className="text-[10px] text-emerald-500 font-bold bg-emerald-900/20 px-1 rounded">Grp {entry.teeGroup}</div>}
-                                    </div>
-                                </div>
+                                <div className="min-w-0"><div className="font-bold text-white text-sm truncate">{entry.playerName}</div><div className="flex gap-2"><div className="text-[10px] text-slate-500">Thru {entry.thru}</div>{entry.teeGroup && <div className="text-[10px] text-emerald-500 font-bold bg-emerald-900/20 px-1 rounded">Grp {entry.teeGroup}</div>}</div></div>
                             )}
                         </div>
                         <div className="text-right">
-                            <div className={`font-black text-xl ${activeGameMode === 'stableford' || activeGameMode === 'skins' ? 'text-yellow-400' : (entry.score < 0 ? 'text-red-400' : (entry.score > 0 ? 'text-white' : 'text-slate-400'))}`}>
-                                {getScoreValue(entry.score)}
-                            </div>
-                            <div className="text-[10px] text-slate-500 font-bold uppercase">
-                                {activeGameMode === 'match' ? 'Vs Host' : getScoreLabel()}
-                            </div>
+                            <div className={`font-black text-xl ${activeGameMode === 'stableford' || activeGameMode === 'skins' ? 'text-yellow-400' : (entry.score < 0 ? 'text-red-400' : (entry.score > 0 ? 'text-white' : 'text-slate-400'))}`}>{getScoreValue(entry.score)}</div>
+                            <div className="text-[10px] text-slate-500 font-bold uppercase">{activeGameMode === 'match' ? 'Vs Host' : getScoreLabel()}</div>
                         </div>
                     </div>
                 ))}

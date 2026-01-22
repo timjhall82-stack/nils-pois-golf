@@ -6,22 +6,22 @@ const ScoreView = ({ currentHole, setCurrentHole, activePars, activeSi, players,
     const handlePrev = () => setCurrentHole(prev => Math.max(1, prev - 1));
     const handleNext = () => setCurrentHole(prev => Math.min(18, prev + 1));
     
-    // Identify "My Player" object to know which group I am in
     const myPlayer = players.find(p => p.userId === user?.uid);
     const hostId = gameSettings?.hostUserId;
 
-    // Helper: Check Permissions
+    // Check if we should use reduced handicaps (Match/Skins)
+    const useReducedHandicaps = gameSettings?.gameMode === 'match' || gameSettings?.gameMode === 'skins';
+    
+    // Find lowest CH to reduce everyone if needed
+    const lowestCH = useMemo(() => {
+        if (!useReducedHandicaps || players.length === 0) return 0;
+        return Math.min(...players.map(p => p.courseHandicap || 0));
+    }, [players, useReducedHandicaps]);
+
     const canEdit = (targetPlayer) => {
-        // 1. Host can edit everyone
         if (user?.uid === hostId) return true;
-
-        // 2. I can edit myself
         if (targetPlayer.userId === user?.uid) return true;
-
-        // 3. I can edit people in my Tee Group (if I have a group)
         if (myPlayer?.teeGroup && targetPlayer.teeGroup === myPlayer.teeGroup) return true;
-
-        // Otherwise, Read Only
         return false;
     };
 
@@ -29,7 +29,6 @@ const ScoreView = ({ currentHole, setCurrentHole, activePars, activeSi, players,
         return [...players].sort((a, b) => {
             if (a.userId === user?.uid) return -1;
             if (b.userId === user?.uid) return 1;
-            // Sort by group, then name
             const groupA = a.teeGroup || 99;
             const groupB = b.teeGroup || 99;
             if (groupA !== groupB) return groupA - groupB;
@@ -43,11 +42,13 @@ const ScoreView = ({ currentHole, setCurrentHole, activePars, activeSi, players,
 
     const ScoringRow = ({ player }) => {
         const score = player.scores?.[currentHole] || '';
-        const shots = getShotsOnHole(player.courseHandicap, si);
+        
+        // Calculate shots based on mode
+        const playingHandicap = useReducedHandicaps ? (player.courseHandicap - lowestCH) : player.courseHandicap;
+        const shots = getShotsOnHole(playingHandicap, si);
+        
         const netScore = score && score !== 'NR' ? score - shots : 'NR';
         const points = calculateStableford(score, par, shots);
-        
-        // CHECK PERMISSION
         const isEditable = canEdit(player);
 
         const handleScoreChange = (delta) => {
@@ -97,27 +98,15 @@ const ScoreView = ({ currentHole, setCurrentHole, activePars, activeSi, players,
                 </div>
 
                 {isEditable ? (
-                    // RENDER BUTTONS IF EDITABLE
                     <div className="flex items-center gap-1">
-                        <button onClick={toggleNR} className={`w-8 h-8 rounded-lg font-bold text-[10px] border transition-colors ${score === 'NR' ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-slate-800 text-slate-500 border-slate-700'}`}>
-                            NR
-                        </button>
-                        <button onClick={() => handleScoreChange(-1)} className="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center text-white border border-slate-700 active:bg-slate-700 active:scale-95 transition-all">
-                            <Minus size={18} />
-                        </button>
-                        <div className={`w-12 h-10 flex items-center justify-center font-black text-xl rounded-lg border bg-slate-950 ${score === 'NR' ? 'text-red-500 border-red-900' : 'text-white border-slate-800'}`}>
-                            {score}
-                        </div>
-                        <button onClick={() => handleScoreChange(1)} className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-emerald-900/50 active:scale-95 transition-all">
-                            <Plus size={18} />
-                        </button>
+                        <button onClick={toggleNR} className={`w-8 h-8 rounded-lg font-bold text-[10px] border transition-colors ${score === 'NR' ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-slate-800 text-slate-500 border-slate-700'}`}>NR</button>
+                        <button onClick={() => handleScoreChange(-1)} className="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center text-white border border-slate-700 active:bg-slate-700 active:scale-95 transition-all"><Minus size={18} /></button>
+                        <div className={`w-12 h-10 flex items-center justify-center font-black text-xl rounded-lg border bg-slate-950 ${score === 'NR' ? 'text-red-500 border-red-900' : 'text-white border-slate-800'}`}>{score}</div>
+                        <button onClick={() => handleScoreChange(1)} className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-emerald-900/50 active:scale-95 transition-all"><Plus size={18} /></button>
                     </div>
                 ) : (
-                    // RENDER STATIC SCORE IF NOT EDITABLE
                     <div className="flex items-center justify-center w-16 h-10 bg-slate-950 rounded-lg border border-slate-800">
-                        <span className={`font-black text-xl ${score === 'NR' ? 'text-red-500' : 'text-slate-500'}`}>
-                            {score || '-'}
-                        </span>
+                        <span className={`font-black text-xl ${score === 'NR' ? 'text-red-500' : 'text-slate-500'}`}>{score || '-'}</span>
                     </div>
                 )}
             </div>
@@ -138,7 +127,6 @@ const ScoreView = ({ currentHole, setCurrentHole, activePars, activeSi, players,
                 </div>
                 <button onClick={handleNext} className="p-2 bg-slate-800 rounded-xl text-slate-400 hover:text-white disabled:opacity-30 transition-colors" disabled={currentHole === 18}><ChevronRight size={24} /></button>
             </div>
-            
             <div className="flex-1 overflow-y-auto pb-20">
                 {sortedPlayers.map(p => <ScoringRow key={p.id} player={p} />)}
             </div>
