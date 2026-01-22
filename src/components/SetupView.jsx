@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
-import { Settings, AlertCircle, User, Users, Plus, CheckSquare, Square, UserCheck, X, BookOpen, Target, Activity, Swords, Gem, Save, Percent } from 'lucide-react';
+import { 
+    Settings, AlertCircle, User, Users, Plus, CheckSquare, Square, 
+    UserCheck, X, BookOpen, Target, Activity, Swords, Gem, Save, Percent 
+} from 'lucide-react';
+
 import { PRESET_COURSES } from '../utils/constants';
 
-const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRating, pars, setPars, gameMode, setGameMode, setSi, si, playerName, setPlayerName, handicapIndex, setHandicapIndex, createGame, onCancel, savedPlayers, error, teamMode, setTeamMode, handicapMode, setHandicapMode, holesMode, setHolesMode }) => {
+// FIX: Receive gameTitle and setGameTitle separately
+const SetupView = ({ gameTitle, setGameTitle, courseName, setCourseName, slope, setSlope, rating, setRating, pars, setPars, gameMode, setGameMode, setSi, si, playerName, setPlayerName, handicapIndex, setHandicapIndex, createGame, onCancel, savedPlayers, error, teamMode, setTeamMode, handicapMode, setHandicapMode, holesMode, setHolesMode }) => {
   const [selectedFriends, setSelectedFriends] = useState(new Set());
   const [adhocName, setAdhocName] = useState('');
   const [adhocHcp, setAdhocHcp] = useState('');
@@ -15,7 +20,12 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
     const key = e.target.value;
     if (key && PRESET_COURSES[key]) {
       const c = PRESET_COURSES[key];
-      setCourseName(c.name); setSlope(c.slope); setRating(c.rating); setPars(c.pars); if (c.si) setSi(c.si);
+      // FIX: Only update the Technical Course Name, NOT the Game Title
+      setCourseName(c.name); 
+      setSlope(c.slope); 
+      setRating(c.rating); 
+      setPars(c.pars); 
+      if (c.si) setSi(c.si);
     }
   };
 
@@ -46,7 +56,22 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
     <div className="min-h-screen bg-transparent text-white p-4 flex flex-col items-center">
         <h2 className="text-xl font-bold mb-4 flex items-center"><Settings size={20} className="mr-2"/> Game Setup</h2>
         {error && <div className="w-full max-w-md p-3 bg-red-500/20 border border-red-500/50 text-red-200 rounded-lg text-sm text-center mb-4 flex items-center justify-center animate-in fade-in"><AlertCircle size={16} className="mr-2"/>{String(error)}</div>}
+        
+        {/* Main Card */}
         <div className="w-full max-w-md bg-slate-900/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800 space-y-6">
+            
+            {/* NEW: Game Title Input (Always Visible) */}
+            <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
+                <label className="text-xs font-bold text-emerald-400 uppercase flex items-center mb-2"><Flag size={12} className="mr-1"/> Game Name</label>
+                <input 
+                    className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" 
+                    placeholder="e.g. Sunday Morning Match" 
+                    value={gameTitle} 
+                    onChange={(e) => setGameTitle(e.target.value)} 
+                />
+            </div>
+
+            {/* Host Player Selection */}
             <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
                 <div className="flex justify-between items-center mb-3">
                     <label className="text-xs font-bold text-emerald-400 uppercase flex items-center"><User size={12} className="mr-1"/> Host Player (You)</label>
@@ -60,6 +85,8 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                      <input type="number" className="w-20 bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="HCP" value={handicapIndex} onChange={(e) => setHandicapIndex(e.target.value)} />
                 </div>
             </div>
+
+            {/* Players Section */}
             <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 space-y-4">
                 <label className="text-xs font-bold text-emerald-400 uppercase flex items-center"><Users size={12} className="mr-1"/> Add Players</label>
                 <div className="flex gap-2 items-center">
@@ -103,6 +130,7 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
 
                 <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 space-y-3">
                     <label className="text-xs font-bold text-slate-500 uppercase flex items-center"><BookOpen size={12} className="mr-1"/> Course Details</label>
+                    
                     {activeTab === 'preset' ? (
                         <select className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-slate-400 focus:outline-none focus:border-emerald-500" onChange={handlePresetChange} defaultValue="">
                             <option value="" disabled>Or select preset...</option>
@@ -116,10 +144,13 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                             <div className="text-[10px] text-slate-500 italic">Enter Slope/Rating below, then edit hole details</div>
                         </div>
                     )}
+                    
                     <div className="grid grid-cols-2 gap-4">
                         <div><label className="text-xs font-bold text-slate-500 uppercase">Slope</label><input type="number" className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 focus:border-emerald-500 outline-none transition-colors" value={slope} onChange={(e) => setSlope(e.target.value)} /></div>
                         <div><label className="text-xs font-bold text-slate-500 uppercase">Rating</label><input type="number" className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 focus:border-emerald-500 outline-none transition-colors" value={rating} onChange={(e) => setRating(e.target.value)} /></div>
                     </div>
+
+                    {/* Manual Hole Editor */}
                     {activeTab === 'manual' && (
                         <div className="mt-2 bg-slate-900 rounded-lg p-2 border border-slate-800">
                             <div className="flex justify-between text-[10px] text-slate-500 uppercase font-bold mb-1 px-1"><span>Hole</span><span>Par</span><span>SI</span></div>
@@ -136,6 +167,7 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                     )}
                 </div>
                 
+                {/* Holes Mode Toggle */}
                 <div>
                    <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Holes to Play</label>
                    <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700">
@@ -145,6 +177,7 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                    </div>
                 </div>
 
+                {/* Format Toggle */}
                 <div>
                    <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Format</label>
                    <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700">
@@ -153,13 +186,14 @@ const SetupView = ({ courseName, setCourseName, slope, setSlope, rating, setRati
                    </div>
                 </div>
                 
+                {/* Handicap Mode Toggle */}
                 <div>
                    <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Handicap Calc</label>
                    <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700">
                         <button onClick={() => setHandicapMode('full')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${handicapMode === 'full' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>Full</button>
-                        {/* NEW: 90% Option */}
-                        <button onClick={() => setHandicapMode('95')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${handicapMode === '95' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}><span className="flex items-center justify-center">95%</span></button>
-                        <button onClick={() => setHandicapMode('90')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${handicapMode === '90' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}><span className="flex items-center justify-center">90%</span></button>
+                        <button onClick={() => setHandicapMode('95')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${handicapMode === '95' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>
+                            <span className="flex items-center justify-center"><Percent size={12} className="mr-1"/> 95%</span>
+                        </button>
                         <button onClick={() => setHandicapMode('diff')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${handicapMode === 'diff' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>Diff</button>
                    </div>
                 </div>
