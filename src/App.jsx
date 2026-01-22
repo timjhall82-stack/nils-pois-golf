@@ -21,7 +21,7 @@ import {
   setDoc, 
   doc, 
   getDoc,
-  getDocs, // Added getDocs for the join check
+  getDocs,
   writeBatch,
   updateDoc
 } from 'firebase/firestore';
@@ -36,10 +36,11 @@ import {
   Check, 
   Loader2, 
   CloudOff,
-  X
+  X,
+  Settings // FIX: Added Settings icon
 } from 'lucide-react';
 
-// --- IMPORTS FROM YOUR FILE STRUCTURE ---
+// --- IMPORTS ---
 import { APP_VERSION, APP_ID, COLLECTION_NAME, BACKGROUND_IMAGE, DEFAULT_PARS, DEFAULT_SI, CUSTOM_LOGO_URL } from './utils/constants';
 
 // Views
@@ -48,6 +49,8 @@ import SetupView from './components/SetupView';
 import ScoreView from './components/ScoreView';
 import LeaderboardView from './components/LeaderboardView';
 import ScorecardView from './components/ScorecardView';
+// FIX: Import the new settings view
+import GameSettingsView from './components/GameSettingsView';
 
 // Modals
 import { TeeSheetModal, InfoPage, HistoryView, PlayerPortal } from './components/Modals';
@@ -67,7 +70,6 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 // --- Helper Functions ---
-
 const calculateCourseHandicap = (index, slopeVal, ratingVal, parVal, holesMode = '18', handicapMode = 'full') => {
     if (!index || index === '') return 0;
     let idx = parseFloat(index);
@@ -75,20 +77,11 @@ const calculateCourseHandicap = (index, slopeVal, ratingVal, parVal, holesMode =
     const rtg = parseFloat(ratingVal) || 72;
     const pr = parseInt(parVal) || 72;
     
-    // WHS Formula
     let rawCh = idx * (slp / 113) + (rtg - pr);
-    
-    // Apply Allowance
-    if (handicapMode === '95') {
-        rawCh = rawCh * 0.95;
-    }
+    if (handicapMode === '95') { rawCh = rawCh * 0.95; }
 
     let ch = Math.round(rawCh);
-
-    // 9-Hole Adjustment
-    if (holesMode === 'front9' || holesMode === 'back9') {
-        return Math.round(ch / 2);
-    }
+    if (holesMode === 'front9' || holesMode === 'back9') { return Math.round(ch / 2); }
     return ch;
 };
 
@@ -105,7 +98,7 @@ export default function App() {
   const [gameId, setGameId] = useState('');
   const [playerName, setPlayerName] = useState('');
   const [handicapIndex, setHandicapIndex] = useState('');
-  const [currentAvatar, setCurrentAvatar] = useState(''); // Track chosen avatar
+  const [currentAvatar, setCurrentAvatar] = useState(''); 
   const [savedPlayers, setSavedPlayers] = useState([]);
   const [syncStatus, setSyncStatus] = useState('saved'); 
   
@@ -118,14 +111,14 @@ export default function App() {
   const [joinCodeInput, setJoinCodeInput] = useState('');
   const [error, setError] = useState('');
   
-  // Modals State
+  // Modals
   const [showExitModal, setShowExitModal] = useState(false);
   const [showTeeSheet, setShowTeeSheet] = useState(false);
   const [showPortal, setShowPortal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showInfo, setShowInfo] = useState(false); 
   
-  // Tee Sheet State
+  // Tee Sheet Guest Input
   const [newGuestName, setNewGuestName] = useState('');
   const [newGuestHcp, setNewGuestHcp] = useState('');
   
@@ -145,19 +138,12 @@ export default function App() {
   const activeGameMode = gameSettings?.gameMode || 'stroke';
   const leaderboardData = players; 
 
-  // --- HARDWARE BACK BUTTON LOGIC ---
+  // Back Button Logic
   const isBackNav = useRef(false);
-
-  // 1. Handle the "Back" button press
   useEffect(() => {
-    if (!window.history.state) {
-      window.history.replaceState({ view: 'lobby' }, '');
-    }
-
+    if (!window.history.state) { window.history.replaceState({ view: 'lobby' }, ''); }
     const onPopState = (event) => {
       const destView = event.state?.view || 'lobby';
-      
-      // PROTECTION: If in game and hitting back, confirm exit
       if (view === 'score' && (destView === 'lobby' || destView === 'setup')) {
         window.history.pushState({ view: 'score' }, '');
         setShowExitModal(true);
@@ -166,29 +152,19 @@ export default function App() {
         setView(destView);
       }
     };
-
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, [view]);
 
-  // 2. Sync "Forward" navigation to History
   useEffect(() => {
-    if (isBackNav.current) {
-      isBackNav.current = false;
-      return;
-    }
-    if (window.history.state?.view !== view) {
-      window.history.pushState({ view }, '');
-    }
+    if (isBackNav.current) { isBackNav.current = false; return; }
+    if (window.history.state?.view !== view) { window.history.pushState({ view }, ''); }
   }, [view]);
 
-  // --- AUTH & DATA LOADING ---
+  // Auth & Data
   useEffect(() => {
     const initAuth = async () => {
-      try { 
-        await setPersistence(auth, browserLocalPersistence); 
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } 
-      } catch (err) { console.error("Auth error", err); setError("Failed to authenticate"); }
+      try { await setPersistence(auth, browserLocalPersistence); if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } } catch (err) { console.error("Auth error", err); setError("Failed to authenticate"); }
     };
     initAuth();
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
@@ -225,19 +201,16 @@ export default function App() {
         if (docSnap.exists()) { 
             const s = docSnap.data();
             setGameSettings(s); 
-            // Only switch view if we are stuck in lobby/setup but a game is loaded
             if (view === 'lobby' || view === 'setup') setView('score'); 
         } 
         setLoading(false);
     }, (err) => console.error(err));
-    
     const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME), where('gameId', '==', gameId.toUpperCase()), where('type', '==', 'player'));
     const unsubPlayers = onSnapshot(q, (snapshot) => { const playerData = []; snapshot.forEach((doc) => { playerData.push({ id: doc.id, ...doc.data() }); }); setPlayers(playerData); }, (err) => console.error(err));
     return () => { unsubSettings(); unsubPlayers(); };
   }, [user, gameId]);
 
-  // --- ACTIONS ---
-
+  // Actions
   const createGame = async (friendsToAdd = [], hostAvatarUrl = '') => {
       if (!playerName) { throw new Error("Host name required"); }
       const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -246,7 +219,7 @@ export default function App() {
       
       await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, settingsId), { 
           courseName, slope, rating, pars, si, totalPar, gameMode, teamMode, handicapMode, holesMode,
-          hostUserId: user.uid, // <--- NEW: Save the Host ID
+          hostUserId: user.uid,
           createdAt: new Date().toISOString() 
       });
       await joinGameLogic(newCode, courseName, slope, rating, totalPar, hostAvatarUrl, holesMode, handicapMode);
@@ -258,15 +231,8 @@ export default function App() {
               const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, `${newCode}_${guestId}`);
               const ch = calculateCourseHandicap(friend.handicap, slope, rating, totalPar, holesMode, handicapMode);
               batch.set(docRef, { 
-                  gameId: newCode, 
-                  userId: guestId, 
-                  playerName: friend.name, 
-                  handicapIndex: friend.handicap, 
-                  courseHandicap: ch, 
-                  avatarUrl: friend.avatarUrl || '',
-                  type: 'player', 
-                  isGuest: true, 
-                  teeGroup: null, 
+                  gameId: newCode, userId: guestId, playerName: friend.name, handicapIndex: friend.handicap, 
+                  courseHandicap: ch, avatarUrl: friend.avatarUrl || '', type: 'player', isGuest: true, teeGroup: null, 
                   lastActive: new Date().toISOString() 
               });
           });
@@ -285,65 +251,73 @@ export default function App() {
     await joinGameLogic(code, settings.courseName, settings.slope, settings.rating, settings.totalPar, currentAvatar, settings.holesMode, mode);
   };
 
-  // SMART JOIN LOGIC: Checks for duplicate names before joining
   const joinGameLogic = async (code, cName, cSlope, cRating, cTotalPar, avatarUrl = '', hMode = '18', hcpMode = 'full') => {
     setLoading(true);
     setGameId(code);
-    
     localStorage.setItem('golf_game_id', code);
     localStorage.setItem('golf_player_name', playerName);
     localStorage.setItem('golf_player_hcp', handicapIndex);
-
     const ch = calculateCourseHandicap(handicapIndex, cSlope, cRating, cTotalPar, hMode, hcpMode);
-
+    const playerDocId = `${code}_${user.uid}`;
+    
+    // Check for duplicate
     try {
-        // STEP 1: Check if this player name already exists in this game
         const q = query(
             collection(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME),
             where('gameId', '==', code),
             where('playerName', '==', playerName),
             where('type', '==', 'player')
         );
-
         const querySnapshot = await getDocs(q);
-
         if (!querySnapshot.empty) {
-            // Player Exists -> Take over the existing slot
             const existingDoc = querySnapshot.docs[0];
             const existingData = existingDoc.data();
-            
             const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, existingDoc.id);
-
             await setDoc(docRef, {
-                userId: user.uid,
-                handicapIndex: handicapIndex,
-                courseHandicap: ch,
-                avatarUrl: avatarUrl || existingData.avatarUrl,
-                isGuest: false,
-                lastActive: new Date().toISOString()
+                userId: user.uid, handicapIndex: handicapIndex, courseHandicap: ch,
+                avatarUrl: avatarUrl || existingData.avatarUrl, isGuest: false, lastActive: new Date().toISOString()
             }, { merge: true });
-
         } else {
-            // New Player -> Create a brand new slot
-            const playerDocId = `${code}_${user.uid}`;
             await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, playerDocId), { 
-                gameId: code, 
-                userId: user.uid, 
-                playerName: playerName, 
-                handicapIndex: handicapIndex, 
-                courseHandicap: ch, 
-                avatarUrl: avatarUrl, 
-                type: 'player', 
-                lastActive: new Date().toISOString() 
+                gameId: code, userId: user.uid, playerName: playerName, handicapIndex: handicapIndex, 
+                courseHandicap: ch, avatarUrl: avatarUrl, type: 'player', lastActive: new Date().toISOString() 
             }, { merge: true });
         }
-
         setView('score');
-    } catch (err) {
-        console.error("Error joining game:", err);
-        setError("Could not join game. Please try again.");
-    } finally {
-        setLoading(false);
+    } catch (err) { console.error("Error joining:", err); setError("Join failed."); } finally { setLoading(false); }
+  };
+
+  // NEW: Update Settings & Recalculate Handicaps
+  const updateGameSettings = async (newSettings) => {
+    setSyncStatus('saving');
+    try {
+        const batch = writeBatch(db);
+        
+        // 1. Update Settings Doc
+        const settingsRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, `SETTINGS_${gameId}`);
+        batch.update(settingsRef, newSettings);
+
+        // 2. Recalculate Everyone's CH
+        players.forEach(p => {
+            const newCH = calculateCourseHandicap(
+                p.handicapIndex, 
+                newSettings.slope, 
+                newSettings.rating, 
+                newSettings.totalPar, 
+                newSettings.holesMode, 
+                newSettings.handicapMode || (newSettings.useHandicapDiff ? 'diff' : 'full')
+            );
+            const pRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, p.id);
+            batch.update(pRef, { courseHandicap: newCH });
+        });
+
+        await batch.commit();
+        setSyncStatus('saved');
+        setView('score'); // Return to game
+    } catch(e) { 
+        console.error("Error updating settings:", e); 
+        setSyncStatus('error'); 
+        alert("Failed to save settings.");
     }
   };
 
@@ -354,10 +328,7 @@ export default function App() {
     const targetPlayer = players.find(p => p.userId === targetUserId) || {};
     const currentScores = targetPlayer.scores || {};
     const newScores = { ...currentScores, [hole]: strokes };
-    try { 
-        await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, playerDocId), { scores: newScores }, { merge: true }); 
-        setSyncStatus('saved'); 
-    } catch (e) { console.error("Sync error:", e); setSyncStatus('error'); }
+    try { await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, playerDocId), { scores: newScores }, { merge: true }); setSyncStatus('saved'); } catch (e) { console.error("Sync error:", e); setSyncStatus('error'); }
   };
 
   const updatePlayerGroup = async (playerId, groupNum) => {
@@ -368,13 +339,7 @@ export default function App() {
   
   const leaveGame = () => { setShowExitModal(true); };
   const confirmLeave = () => { localStorage.removeItem('golf_game_id'); setGameId(''); setPlayers([]); setGameSettings(null); setView('lobby'); setJoinCodeInput(''); setShowExitModal(false); };
-  
-  const loadHistoricalGame = (oldGameId) => { 
-      if(!oldGameId) return; 
-      setGameId(oldGameId); 
-      setShowHistory(false); 
-      setView('leaderboard'); 
-  };
+  const loadHistoricalGame = (oldGameId) => { if(!oldGameId) return; setGameId(oldGameId); setShowHistory(false); setView('leaderboard'); };
 
   const addGuestPlayer = async (avatarUrl = '') => {
       if (!newGuestName.trim()) return;
@@ -385,16 +350,8 @@ export default function App() {
       const mode = cSettings.handicapMode || (cSettings.useHandicapDiff ? 'diff' : 'full');
       const ch = calculateCourseHandicap(newGuestHcp, cSettings.slope, cSettings.rating, cSettings.totalPar, cSettings.holesMode, mode);
       await setDoc(docRef, { 
-          gameId: gameId, 
-          userId: guestId, 
-          playerName: newGuestName, 
-          handicapIndex: newGuestHcp || 0, 
-          courseHandicap: ch, 
-          avatarUrl: avatarUrl,
-          type: 'player', 
-          isGuest: true, 
-          teeGroup: null, 
-          lastActive: new Date().toISOString() 
+          gameId: gameId, userId: guestId, playerName: newGuestName, handicapIndex: newGuestHcp || 0, 
+          courseHandicap: ch, avatarUrl: avatarUrl, type: 'player', isGuest: true, teeGroup: null, lastActive: new Date().toISOString() 
       });
       setNewGuestName(''); setNewGuestHcp('');
   };
@@ -404,10 +361,7 @@ export default function App() {
       const shuffled = [...players];
       for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
       const batch = writeBatch(db);
-      shuffled.forEach((p, index) => { const groupNum = Math.floor(index / groupSize) + 1; 
-          const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, p.id); 
-          batch.update(docRef, { teeGroup: groupNum }); 
-      });
+      shuffled.forEach((p, index) => { const groupNum = Math.floor(index / groupSize) + 1; const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, p.id); batch.update(docRef, { teeGroup: groupNum }); });
       await batch.commit();
   };
   
@@ -415,15 +369,7 @@ export default function App() {
   const handleLogout = async () => { await signOut(auth); await signInAnonymously(auth); };
 
   return (
-    <div 
-      className="min-h-screen bg-transparent text-white font-sans overflow-hidden flex flex-col"
-      style={{
-        backgroundImage: `linear-gradient(to bottom, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.9)), url("${BACKGROUND_IMAGE}")`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed'
-      }}
-    >
+    <div className="min-h-screen bg-transparent text-white font-sans overflow-hidden flex flex-col" style={{ backgroundImage: `linear-gradient(to bottom, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.9)), url("${BACKGROUND_IMAGE}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
         {view === 'lobby' && (
             <LobbyView 
                 courseName={courseName} setCourseName={setCourseName}
@@ -451,8 +397,7 @@ export default function App() {
                 rating={rating} setRating={setRating}
                 pars={pars} setPars={setPars}
                 gameMode={gameMode} setGameMode={setGameMode}
-                setSi={setSi} 
-                si={si}       
+                setSi={setSi} si={si}       
                 playerName={playerName} setPlayerName={setPlayerName}
                 handicapIndex={handicapIndex} setHandicapIndex={setHandicapIndex}
                 createGame={createGame}
@@ -465,57 +410,26 @@ export default function App() {
             />
         )}
 
-        {(view === 'score' || view === 'leaderboard' || view === 'card') && (
+        {/* FIX: Handle 'settings' view */}
+        {(view === 'score' || view === 'leaderboard' || view === 'card' || view === 'settings') && (
             <>
-                <header className="bg-slate-900/80 backdrop-blur border-b border-slate-800 h-14 flex items-center justify-between px-4 z-30 sticky top-0">
-                    <div className="flex items-center space-x-2">
-                        <MapPin size={16} className="text-emerald-500" />
-                        <span className="font-bold text-sm truncate max-w-[120px]">{gameSettings?.courseName || 'Nils Pois'}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <SyncStatus status={syncStatus} />
-                        <button 
-                            type="button"
-                            onClick={(e) => {
-                                setShowTeeSheet(true);
-                            }} 
-                            className="bg-slate-800 p-3 rounded-full text-emerald-500 hover:text-emerald-400 hover:bg-slate-700 transition active:scale-95"
-                        >
-                            <Users size={18} />
-                        </button>
-                        <div className="flex items-center bg-slate-950 rounded-full px-3 py-1 border border-slate-800" onClick={() => {navigator.clipboard.writeText(gameId);}}><span className="font-mono font-bold text-emerald-400 tracking-widest mr-2">{gameId}</span><Share2 size={12} className="text-slate-500"/></div>
-                    </div>
-                </header>
+                {view !== 'settings' && (
+                    <header className="bg-slate-900/80 backdrop-blur border-b border-slate-800 h-14 flex items-center justify-between px-4 z-30 sticky top-0">
+                        <div className="flex items-center space-x-2"><MapPin size={16} className="text-emerald-500" /><span className="font-bold text-sm truncate max-w-[120px]">{gameSettings?.courseName || 'Nils Pois'}</span></div>
+                        <div className="flex items-center gap-2"><SyncStatus status={syncStatus} /><button type="button" onClick={(e) => { setShowTeeSheet(true); }} className="bg-slate-800 p-3 rounded-full text-emerald-500 hover:text-emerald-400 hover:bg-slate-700 transition active:scale-95"><Users size={18} /></button><div className="flex items-center bg-slate-950 rounded-full px-3 py-1 border border-slate-800" onClick={() => {navigator.clipboard.writeText(gameId);}}><span className="font-mono font-bold text-emerald-400 tracking-widest mr-2">{gameId}</span><Share2 size={12} className="text-slate-500"/></div></div>
+                    </header>
+                )}
 
                 <main className="flex-1 p-4 max-w-lg mx-auto w-full overflow-hidden flex flex-col">
-                    {view === 'score' && (
-                        <ScoreView 
-                            currentHole={currentHole} setCurrentHole={setCurrentHole}
-                            currentHoleScore={0} updateScore={updateScore}
-                            activePars={activePars} activeSi={activeSi} 
-                            players={players}
-                            user={user}
-                            gameSettings={gameSettings}
-                        />
-                    )}
+                    {view === 'score' && <ScoreView currentHole={currentHole} setCurrentHole={setCurrentHole} currentHoleScore={0} updateScore={updateScore} activePars={activePars} activeSi={activeSi} players={players} user={user} gameSettings={gameSettings} />}
+                    {view === 'leaderboard' && <LeaderboardView leaderboardData={leaderboardData} user={user} activeGameMode={activeGameMode} teamMode={gameSettings?.teamMode || 'singles'} gameSettings={gameSettings} />}
+                    {view === 'card' && <ScorecardView players={players} activePars={activePars} activeSi={activeSi} holesMode={gameSettings?.holesMode || '18'} gameMode={activeGameMode} />}
+                    {/* FIX: Add Settings View */}
+                    {view === 'settings' && <GameSettingsView gameSettings={gameSettings} onUpdate={updateGameSettings} onCancel={() => setView('score')} />}
                     
-                    {view === 'leaderboard' && (
-                        <LeaderboardView leaderboardData={leaderboardData} user={user} activeGameMode={activeGameMode} teamMode={gameSettings?.teamMode || 'singles'} gameSettings={gameSettings} />
+                    {view !== 'settings' && (
+                        <div className="mt-2 flex justify-between items-center px-1"><button onClick={leaveGame} className="text-[10px] text-red-500/50 hover:text-red-400 flex items-center gap-1 uppercase tracking-wider"><LogOut size={10}/> Exit</button></div>
                     )}
-
-                    {view === 'card' && (
-                        <ScorecardView 
-                            players={players} 
-                            activePars={activePars} 
-                            activeSi={activeSi}
-                            holesMode={gameSettings?.holesMode || '18'} 
-                            gameMode={activeGameMode}
-                        />
-                    )}
-                    
-                    <div className="mt-2 flex justify-between items-center px-1">
-                         <button onClick={leaveGame} className="text-[10px] text-red-500/50 hover:text-red-400 flex items-center gap-1 uppercase tracking-wider"><LogOut size={10}/> Exit</button>
-                    </div>
                 </main>
 
                 <nav className="bg-slate-900 border-t border-slate-800 h-16 pb-2 z-20">
@@ -523,52 +437,17 @@ export default function App() {
                         <button onClick={() => setView('score')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${view === 'score' ? 'text-emerald-500' : 'text-slate-600'}`}><Activity size={20} /><span className="text-[10px] font-bold uppercase">Score</span></button>
                         <button onClick={() => setView('leaderboard')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${view === 'leaderboard' ? 'text-blue-500' : 'text-slate-600'}`}><Trophy size={20} /><span className="text-[10px] font-bold uppercase">Leaderboard</span></button>
                         <button onClick={() => setView('card')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${view === 'card' ? 'text-purple-500' : 'text-slate-600'}`}><TableProperties size={20} /><span className="text-[10px] font-bold uppercase">Card</span></button>
+                        {/* FIX: Add Settings Tab */}
+                        <button onClick={() => setView('settings')} className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${view === 'settings' ? 'text-white' : 'text-slate-600'}`}><Settings size={20} /><span className="text-[10px] font-bold uppercase">Setup</span></button>
                     </div>
                 </nav>
             </>
         )}
-
-        {/* Modals */}
-        {showPortal && user && (
-            <PlayerPortal onClose={() => setShowPortal(false)} userId={user.uid} savedPlayers={savedPlayers} db={db} APP_ID={APP_ID} />
-        )}
-
-        {showHistory && user && (
-            <HistoryView userId={user.uid} onClose={() => setShowHistory(false)} onLoadGame={loadHistoricalGame} db={db} APP_ID={APP_ID} COLLECTION_NAME={COLLECTION_NAME} />
-        )}
-        
-        {showInfo && (
-            <InfoPage onClose={() => setShowInfo(false)} />
-        )}
-
-        // ... inside the return statement of App()
-
-        {showTeeSheet && (
-            <TeeSheetModal 
-                onClose={() => setShowTeeSheet(false)} 
-                players={players} 
-                addGuest={addGuestPlayer} 
-                randomize={randomizeGroups} 
-                newGuestName={newGuestName} 
-                setNewGuestName={setNewGuestName} 
-                newGuestHcp={newGuestHcp} 
-                setNewGuestHcp={setNewGuestHcp} 
-                savedPlayers={savedPlayers} 
-                updatePlayerGroup={updatePlayerGroup}
-                // ADD THIS LINE BELOW:
-                teamMode={gameSettings?.teamMode || 'singles'} 
-            />
-        )}
-
-        {showExitModal && (
-            <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-                <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-xs w-full">
-                    <div className="flex justify-between items-center mb-4"><h3 className="text-lg font-bold text-white">Exit Game?</h3><button onClick={() => setShowExitModal(false)} className="text-slate-400 hover:text-white"><X size={20} /></button></div>
-                    <p className="text-slate-400 text-sm mb-6">You will leave the lobby. Scores are saved online.</p>
-                    <div className="flex gap-3"><button onClick={() => setShowExitModal(false)} className="flex-1 py-3 rounded-xl bg-slate-800 text-slate-300 font-bold text-sm hover:bg-slate-700 transition">Cancel</button><button onClick={confirmLeave} className="flex-1 py-3 rounded-xl bg-red-600 text-white font-bold text-sm hover:bg-red-700 transition">Exit</button></div>
-                </div>
-            </div>
-        )}
+        {showPortal && user && <PlayerPortal onClose={() => setShowPortal(false)} userId={user.uid} savedPlayers={savedPlayers} db={db} APP_ID={APP_ID} />}
+        {showHistory && user && <HistoryView userId={user.uid} onClose={() => setShowHistory(false)} onLoadGame={loadHistoricalGame} db={db} APP_ID={APP_ID} COLLECTION_NAME={COLLECTION_NAME} />}
+        {showInfo && <InfoPage onClose={() => setShowInfo(false)} />}
+        {showTeeSheet && <TeeSheetModal onClose={() => setShowTeeSheet(false)} players={players} addGuest={addGuestPlayer} randomize={randomizeGroups} newGuestName={newGuestName} setNewGuestName={setNewGuestName} newGuestHcp={newGuestHcp} setNewGuestHcp={setNewGuestHcp} savedPlayers={savedPlayers} updatePlayerGroup={updatePlayerGroup} teamMode={gameSettings?.teamMode || 'singles'} />}
+        {showExitModal && <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200"><div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-xs w-full"><div className="flex justify-between items-center mb-4"><h3 className="text-lg font-bold text-white">Exit Game?</h3><button onClick={() => setShowExitModal(false)} className="text-slate-400 hover:text-white"><X size={20} /></button></div><p className="text-slate-400 text-sm mb-6">You will leave the lobby. Scores are saved online.</p><div className="flex gap-3"><button onClick={() => setShowExitModal(false)} className="flex-1 py-3 rounded-xl bg-slate-800 text-slate-300 font-bold text-sm hover:bg-slate-700 transition">Cancel</button><button onClick={confirmLeave} className="flex-1 py-3 rounded-xl bg-red-600 text-white font-bold text-sm hover:bg-red-700 transition">Exit</button></div></div></div>}
     </div>
   );
 }
