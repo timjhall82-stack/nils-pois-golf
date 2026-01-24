@@ -6,7 +6,6 @@ import {
 
 import { PRESET_COURSES } from '../utils/constants';
 
-// FIX: Receive gameTitle and setGameTitle separately
 const SetupView = ({ gameTitle, setGameTitle, courseName, setCourseName, slope, setSlope, rating, setRating, pars, setPars, gameMode, setGameMode, setSi, si, playerName, setPlayerName, handicapIndex, setHandicapIndex, createGame, onCancel, savedPlayers, error, teamMode, setTeamMode, handicapMode, setHandicapMode, holesMode, setHolesMode }) => {
   const [selectedFriends, setSelectedFriends] = useState(new Set());
   const [adhocName, setAdhocName] = useState('');
@@ -16,11 +15,13 @@ const SetupView = ({ gameTitle, setGameTitle, courseName, setCourseName, slope, 
   const [hostAvatar, setHostAvatar] = useState('');
   const [activeTab, setActiveTab] = useState('preset');
 
+  // SAFEGUARD: Ensure presets exist to prevent crash
+  const presets = PRESET_COURSES || {};
+
   const handlePresetChange = (e) => {
     const key = e.target.value;
-    if (key && PRESET_COURSES[key]) {
-      const c = PRESET_COURSES[key];
-      // FIX: Only update the Technical Course Name, NOT the Game Title
+    if (key && presets[key]) {
+      const c = presets[key];
       setCourseName(c.name); 
       setSlope(c.slope); 
       setRating(c.rating); 
@@ -62,12 +63,12 @@ const SetupView = ({ gameTitle, setGameTitle, courseName, setCourseName, slope, 
             
             {/* NEW: Game Title Input (Always Visible) */}
             <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
-                <label className="text-xs font-bold text-emerald-400 uppercase flex items-center mb-2"><Flag size={12} className="mr-1"/> Game Name</label>
+                <label className="text-xs font-bold text-emerald-400 uppercase flex items-center mb-2"><BookOpen size={12} className="mr-1"/> Game Name</label>
                 <input 
                     className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" 
                     placeholder="e.g. Sunday Morning Match" 
-                    value={gameTitle} 
-                    onChange={(e) => setGameTitle(e.target.value)} 
+                    value={gameTitle || ''} 
+                    onChange={(e) => setGameTitle && setGameTitle(e.target.value)} 
                 />
             </div>
 
@@ -129,12 +130,12 @@ const SetupView = ({ gameTitle, setGameTitle, courseName, setCourseName, slope, 
                 </div>
 
                 <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 space-y-3">
-                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center"><BookOpen size={12} className="mr-1"/> Course Details</label>
+                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center"><Target size={12} className="mr-1"/> Course Details</label>
                     
                     {activeTab === 'preset' ? (
                         <select className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-slate-400 focus:outline-none focus:border-emerald-500" onChange={handlePresetChange} defaultValue="">
                             <option value="" disabled>Or select preset...</option>
-                            {Object.entries(PRESET_COURSES).map(([key, course]) => (
+                            {Object.entries(presets).map(([key, course]) => (
                                 <option key={key} value={key}>{course.name}</option>
                             ))}
                         </select>
