@@ -4,7 +4,7 @@ import {
     UserCheck, X, BookOpen, Target, Activity, Swords, Gem, Save, Percent 
 } from 'lucide-react';
 
-import { PRESET_COURSES } from '../utils/constants';
+// REMOVED: Import of PRESET_COURSES is no longer needed here
 
 const SetupView = ({ 
     gameTitle, setGameTitle, 
@@ -17,7 +17,7 @@ const SetupView = ({
     playerName, setPlayerName, 
     handicapIndex, setHandicapIndex, 
     createGame, onCancel, 
-    savedPlayers, savedCourses, // Receive savedCourses
+    savedPlayers, savedCourses, // We rely strictly on this now
     error, teamMode, setTeamMode, handicapMode, setHandicapMode, holesMode, setHolesMode 
 }) => {
   const [selectedFriends, setSelectedFriends] = useState(new Set());
@@ -28,24 +28,17 @@ const SetupView = ({
   const [hostAvatar, setHostAvatar] = useState('');
   const [activeTab, setActiveTab] = useState('preset');
 
-  // MERGE PRESETS AND CUSTOM COURSES
-  const allCourses = { ...PRESET_COURSES };
-  // Add saved courses to the list, prefixed with 'custom_' to avoid key collisions
-  if (savedCourses && savedCourses.length > 0) {
-      savedCourses.forEach(c => {
-          allCourses[`custom_${c.id}`] = c;
-      });
-  }
-
+  // FIX: Updated to look up course directly from the savedCourses array
   const handlePresetChange = (e) => {
-    const key = e.target.value;
-    if (key && allCourses[key]) {
-      const c = allCourses[key];
-      setCourseName(c.name); 
-      setSlope(c.slope); 
-      setRating(c.rating); 
-      if (c.pars) setPars(c.pars); 
-      if (c.si) setSi(c.si);
+    const courseId = e.target.value;
+    const selectedCourse = savedCourses?.find(c => c.id === courseId);
+    
+    if (selectedCourse) {
+      setCourseName(selectedCourse.name); 
+      setSlope(selectedCourse.slope); 
+      setRating(selectedCourse.rating); 
+      if (selectedCourse.pars) setPars(selectedCourse.pars); 
+      if (selectedCourse.si) setSi(selectedCourse.si);
     }
   };
 
@@ -144,8 +137,8 @@ const SetupView = ({
             
             <div className="space-y-4">
                 <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700 mb-2">
-                    <button onClick={() => setActiveTab('preset')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'preset' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>Select Preset</button>
-                    <button onClick={() => { setActiveTab('manual'); setCourseName(''); }} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'manual' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>Create Custom</button>
+                    <button onClick={() => setActiveTab('preset')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'preset' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>Select Course</button>
+                    <button onClick={() => { setActiveTab('manual'); setCourseName(''); }} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'manual' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>Manual Entry</button>
                 </div>
 
                 <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 space-y-3">
@@ -153,11 +146,14 @@ const SetupView = ({
                     
                     {activeTab === 'preset' ? (
                         <select className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-slate-400 focus:outline-none focus:border-emerald-500" onChange={handlePresetChange} defaultValue="">
-                            <option value="" disabled>Or select preset...</option>
-                            {/* Render combined list of Presets + Custom Courses */}
-                            {Object.entries(allCourses).map(([key, course]) => (
-                                <option key={key} value={key}>{course.name}</option>
+                            <option value="" disabled>Select from Saved Courses...</option>
+                            {/* FIX: Map directly over savedCourses */}
+                            {savedCourses && savedCourses.map(course => (
+                                <option key={course.id} value={course.id}>{course.name}</option>
                             ))}
+                            {(!savedCourses || savedCourses.length === 0) && (
+                                <option disabled>No courses found. Add in Course Manager.</option>
+                            )}
                         </select>
                     ) : (
                         <div className="space-y-2">
