@@ -50,7 +50,7 @@ import LeaderboardView from './components/LeaderboardView';
 import ScorecardView from './components/ScorecardView';
 
 // Modals
-import { TeeSheetModal, InfoPage, HistoryView, PlayerPortal } from './components/Modals';
+import { TeeSheetModal, InfoPage, HistoryView, PlayerPortal, CourseManagerModal } from './components/Modals';
 
 // --- Firebase Initialization ---
 const firebaseConfig = {
@@ -97,6 +97,7 @@ export default function App() {
   const [handicapIndex, setHandicapIndex] = useState('');
   const [currentAvatar, setCurrentAvatar] = useState(''); 
   const [savedPlayers, setSavedPlayers] = useState([]);
+  const [savedCourses, setSavedCourses] = useState([]); // NEW: Store custom courses
   const [syncStatus, setSyncStatus] = useState('saved'); 
   
   const [players, setPlayers] = useState([]);
@@ -114,13 +115,14 @@ export default function App() {
   const [showPortal, setShowPortal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showInfo, setShowInfo] = useState(false); 
+  const [showCourseManager, setShowCourseManager] = useState(false); // NEW
   
   // Tee Sheet Guest Input
   const [newGuestName, setNewGuestName] = useState('');
   const [newGuestHcp, setNewGuestHcp] = useState('');
   
   // Setup State
-  const [gameTitle, setGameTitle] = useState(''); // NEW: Distinct from Course Name
+  const [gameTitle, setGameTitle] = useState(''); 
   const [courseName, setCourseName] = useState('');
   const [slope, setSlope] = useState('113');
   const [rating, setRating] = useState('72.0');
@@ -179,16 +181,29 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  // FETCH SAVED DATA (Players & Courses)
   useEffect(() => {
       if (!user) return;
-      const q = query(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'saved_players'));
-      const unsubscribe = onSnapshot(q, (snapshot) => { 
+      
+      // Players
+      const qPlayers = query(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'saved_players'));
+      const unsubPlayers = onSnapshot(qPlayers, (snapshot) => { 
           const sp = []; 
           snapshot.forEach(doc => sp.push({id: doc.id, ...doc.data()})); 
           sp.sort((a, b) => a.name.localeCompare(b.name)); 
           setSavedPlayers(sp); 
-      }, (err) => { console.error("Error fetching players:", err); });
-      return () => unsubscribe();
+      }, (err) => console.error("Error fetching players:", err));
+
+      // Courses (NEW)
+      const qCourses = query(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'saved_courses'));
+      const unsubCourses = onSnapshot(qCourses, (snapshot) => { 
+          const sc = []; 
+          snapshot.forEach(doc => sc.push({id: doc.id, ...doc.data()})); 
+          sc.sort((a, b) => a.name.localeCompare(b.name)); 
+          setSavedCourses(sc); 
+      }, (err) => console.error("Error fetching courses:", err));
+
+      return () => { unsubPlayers(); unsubCourses(); };
   }, [user]);
 
   useEffect(() => {
@@ -215,13 +230,11 @@ export default function App() {
       const settingsId = `SETTINGS_${newCode}`;
       const totalPar = pars.reduce((a, b) => a + b, 0);
       
-      // FIX: Save gameTitle (User input) separately from courseName (Technical/Preset)
-      // If gameTitle is empty, fallback to courseName
       const finalGameName = gameTitle || courseName || "My Golf Game";
 
       await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, settingsId), { 
-          gameTitle: finalGameName, // The "Sunday Match" name
-          courseName: courseName,   // The "Olton GC" name
+          gameTitle: finalGameName,
+          courseName: courseName,
           slope, rating, pars, si, totalPar, gameMode, teamMode, handicapMode, holesMode,
           hostUserId: user.uid, 
           createdAt: new Date().toISOString() 
@@ -252,7 +265,6 @@ export default function App() {
     if (!snap.exists()) { setError("Game code not found"); return; }
     const settings = snap.data();
     const mode = settings.handicapMode || (settings.useHandicapDiff ? 'diff' : 'full');
-    
     await joinGameLogic(code, settings.courseName, settings.slope, settings.rating, settings.totalPar, currentAvatar, settings.holesMode, mode);
   };
 
@@ -327,13 +339,7 @@ export default function App() {
   
   const leaveGame = () => { setShowExitModal(true); };
   const confirmLeave = () => { localStorage.removeItem('golf_game_id'); setGameId(''); setPlayers([]); setGameSettings(null); setView('lobby'); setJoinCodeInput(''); setShowExitModal(false); };
-  
-  const loadHistoricalGame = (oldGameId) => { 
-      if(!oldGameId) return; 
-      setGameId(oldGameId); 
-      setShowHistory(false); 
-      setView('leaderboard'); 
-  };
+  const loadHistoricalGame = (oldGameId) => { if(!oldGameId) return; setGameId(oldGameId); setShowHistory(false); setView('leaderboard'); };
 
   const addGuestPlayer = async (avatarUrl = '') => {
       if (!newGuestName.trim()) return;
@@ -385,7 +391,6 @@ export default function App() {
     >
         {view === 'lobby' && (
             <LobbyView 
-                // FIX: Pass gameTitle to Lobby so it can be edited there
                 courseName={gameTitle} setCourseName={setGameTitle}
                 startSetup={() => setView('setup')}
                 playerName={playerName} setPlayerName={setPlayerName}
@@ -396,6 +401,7 @@ export default function App() {
                 error={error} 
                 setShowPortal={setShowPortal}
                 setShowHistory={setShowHistory}
+                setShowCourseManager={setShowCourseManager} // NEW PROP
                 user={user} handleLogin={handleLogin} handleLogout={handleLogout}
                 setShowInfo={setShowInfo}
                 savedPlayers={savedPlayers} 
@@ -406,7 +412,6 @@ export default function App() {
         
         {view === 'setup' && (
             <SetupView 
-                // FIX: Pass separate gameTitle and courseName to Setup
                 gameTitle={gameTitle} setGameTitle={setGameTitle}
                 courseName={courseName} setCourseName={setCourseName}
                 slope={slope} setSlope={setSlope}
@@ -420,6 +425,7 @@ export default function App() {
                 createGame={createGame}
                 onCancel={() => setView('lobby')}
                 savedPlayers={savedPlayers} 
+                savedCourses={savedCourses} // NEW PROP: Pass saved courses
                 error={error} 
                 teamMode={teamMode} setTeamMode={setTeamMode}
                 handicapMode={handicapMode} setHandicapMode={setHandicapMode}
@@ -432,7 +438,6 @@ export default function App() {
                 <header className="bg-slate-900/80 backdrop-blur border-b border-slate-800 h-14 flex items-center justify-between px-4 z-30 sticky top-0">
                     <div className="flex items-center space-x-2">
                         <MapPin size={16} className="text-emerald-500" />
-                        {/* FIX: Display gameTitle if exists, otherwise courseName */}
                         <span className="font-bold text-sm truncate max-w-[120px]">{gameSettings?.gameTitle || gameSettings?.courseName || 'Nils Pois'}</span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -494,6 +499,10 @@ export default function App() {
         {/* Modals */}
         {showPortal && user && (
             <PlayerPortal onClose={() => setShowPortal(false)} userId={user.uid} savedPlayers={savedPlayers} db={db} APP_ID={APP_ID} />
+        )}
+
+        {showCourseManager && user && (
+            <CourseManagerModal onClose={() => setShowCourseManager(false)} userId={user.uid} savedCourses={savedCourses} db={db} APP_ID={APP_ID} />
         )}
 
         {showHistory && user && (

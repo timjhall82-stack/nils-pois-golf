@@ -2,15 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
     Users, UserPlus, Shuffle, X, User, HelpCircle, ChevronUp, ChevronDown, 
     History, Calendar, Activity, Contact, Camera, Edit, Trash2, Plus, AlertTriangle, 
-    Trophy, Flag 
+    Trophy, Flag, Map 
 } from 'lucide-react';
 import { 
     collection, query, where, getDocs, doc, getDoc, addDoc, updateDoc, 
     deleteDoc, writeBatch 
 } from 'firebase/firestore';
-import { CUSTOM_LOGO_URL, APP_VERSION } from '../utils/constants';
+import { CUSTOM_LOGO_URL, APP_VERSION, DEFAULT_PARS, DEFAULT_SI } from '../utils/constants';
 
-// --- TEE SHEET MODAL ---
+// ... TeeSheetModal (keep existing) ...
 export const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestName, setNewGuestName, newGuestHcp, setNewGuestHcp, savedPlayers, updatePlayerGroup, teamMode }) => {
     // Prevent crash by copying array before sorting
     const sortedPlayers = players ? [...players].sort((a,b) => (a.teeGroup || 99) - (b.teeGroup || 99)) : [];
@@ -93,7 +93,7 @@ export const TeeSheetModal = ({ onClose, players, addGuest, randomize, newGuestN
     );
 };
 
-// --- INFO PAGE ---
+// ... InfoPage (keep existing) ...
 export const InfoPage = ({ onClose }) => {
     const [openSection, setOpenSection] = useState(null);
     const toggle = (sec) => setOpenSection(openSection === sec ? null : sec);
@@ -150,7 +150,7 @@ export const InfoPage = ({ onClose }) => {
     );
 };
 
-// --- HISTORY VIEW ---
+// ... HistoryView (keep existing) ...
 export const HistoryView = ({ userId, onClose, onLoadGame, db, APP_ID, COLLECTION_NAME }) => {
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -285,7 +285,7 @@ export const HistoryView = ({ userId, onClose, onLoadGame, db, APP_ID, COLLECTIO
     );
 };
 
-// --- PLAYER PORTAL ---
+// ... PlayerPortal (keep existing) ...
 export const PlayerPortal = ({ onClose, userId, savedPlayers, db, APP_ID }) => {
     const [name, setName] = useState('');
     const [hcp, setHcp] = useState('');
@@ -363,6 +363,78 @@ export const PlayerPortal = ({ onClose, userId, savedPlayers, db, APP_ID }) => {
                             </div>
                         ))
                     }
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- COURSE MANAGER ---
+export const CourseManagerModal = ({ onClose, userId, savedCourses, db, APP_ID }) => {
+    const [cName, setCName] = useState('');
+    const [cSlope, setCSlope] = useState('');
+    const [cRating, setCRating] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!cName.trim() || !cSlope || !cRating) return;
+        setSubmitting(true);
+        try {
+            // We use default PARS and SI for new custom courses for simplicity
+            // The user can edit them in the setup screen if needed
+            const courseData = { 
+                name: cName, 
+                slope: parseInt(cSlope), 
+                rating: parseFloat(cRating), 
+                pars: DEFAULT_PARS,
+                si: DEFAULT_SI,
+                createdAt: new Date().toISOString() 
+            };
+            const coursesRef = collection(db, 'artifacts', APP_ID, 'users', userId, 'saved_courses');
+            await addDoc(coursesRef, courseData);
+            setCName(''); setCSlope(''); setCRating('');
+        } catch (err) { alert("Error saving course: " + err.message); } finally { setSubmitting(false); }
+    };
+
+    const handleDelete = async (id) => {
+        if (confirm("Delete this custom course?")) { 
+            try { await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', userId, 'saved_courses', id)); } 
+            catch (err) { alert("Error: " + err.message); } 
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/90 z-[70] flex flex-col p-4 animate-in fade-in duration-200">
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-white flex items-center"><Map className="mr-2 text-orange-500" /> Course Manager</h2>
+                <button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X size={20} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto space-y-6">
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase mb-3">Add Custom Course</h3>
+                    <div className="space-y-2">
+                        <input className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-orange-500 outline-none" placeholder="Course Name" value={cName} onChange={(e) => setCName(e.target.value)} />
+                        <div className="flex gap-2">
+                            <input type="number" className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-orange-500 outline-none" placeholder="Slope" value={cSlope} onChange={(e) => setCSlope(e.target.value)} />
+                            <input type="number" className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-orange-500 outline-none" placeholder="Rating" value={cRating} onChange={(e) => setCRating(e.target.value)} />
+                        </div>
+                        <button onClick={handleSubmit} disabled={!cName || submitting} className="w-full bg-orange-600 text-white p-2 rounded-lg font-bold disabled:opacity-50 flex items-center justify-center">
+                            {submitting ? <Activity className="animate-spin" size={16}/> : 'Save Course'}
+                        </button>
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase ml-1">My Courses</h3>
+                    {savedCourses.length === 0 ? <div className="text-center text-slate-600 py-8 text-sm">No custom courses saved.</div> : savedCourses.map(c => (
+                        <div key={c.id} className="bg-slate-900 border border-slate-800 p-3 rounded-xl flex justify-between items-center">
+                            <div>
+                                <div className="font-bold text-white">{c.name}</div>
+                                <div className="text-xs text-slate-500">Slope: {c.slope} • Rating: {c.rating}</div>
+                            </div>
+                            <button onClick={() => handleDelete(c.id)} className="p-2 text-slate-600 hover:text-red-500 transition"><Trash2 size={16}/></button>
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>
